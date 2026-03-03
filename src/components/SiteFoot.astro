@@ -1,0 +1,97 @@
+<footer class="site-foot">
+  <div class="site-foot__logo">
+    <a href="/">
+      <svg viewBox="0 0 11 13" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" style="width:3rem;height:3rem;display:block;">
+      <!-- Stem -->
+        <rect fill="currentColor" x="1" y="1" width="1" height="1"/>
+        <rect fill="currentColor" x="1" y="2" width="1" height="1"/>
+        <rect fill="currentColor" x="1" y="3" width="1" height="1"/>
+        <rect fill="currentColor" x="1" y="4" width="1" height="1"/>
+        <rect fill="currentColor" x="1" y="5" width="1" height="1"/>
+        <rect fill="currentColor" x="1" y="6" width="1" height="1" opacity="0.45"/>
+        <rect fill="currentColor" x="1" y="7" width="1" height="1" opacity="0.45"/>
+        <rect fill="currentColor" x="1" y="8" width="1" height="1" opacity="0.45"/>
+        <rect fill="currentColor" x="1" y="9" width="1" height="1" opacity="0.45"/>
+        <rect fill="currentColor" x="1" y="10" width="1" height="1" opacity="0.45"/>
+        <!-- Top bar -->
+        <rect fill="currentColor" x="2" y="1" width="1" height="1"/>
+        <rect fill="currentColor" x="3" y="1" width="1" height="1"/>
+        <rect fill="currentColor" x="4" y="1" width="1" height="1"/>
+        <rect fill="currentColor" x="5" y="1" width="1" height="1"/>
+        <!-- Bowl right -->
+        <rect fill="currentColor" x="6" y="1" width="1" height="1"/>
+        <rect fill="currentColor" x="7" y="2" width="1" height="1"/>
+        <rect fill="currentColor" x="7" y="3" width="1" height="1"/>
+        <rect fill="currentColor" x="6" y="4" width="1" height="1"/>
+        <!-- Bowl bottom -->
+        <rect fill="currentColor" x="5" y="5" width="1" height="1"/>
+        <rect fill="currentColor" x="4" y="5" width="1" height="1"/>
+        <rect fill="currentColor" x="3" y="5" width="1" height="1"/>
+        <rect fill="currentColor" x="2" y="5" width="1" height="1"/>
+        <!-- Diagonal leg -->
+        <rect fill="currentColor" x="3" y="6" width="1" height="1"/>
+        <rect fill="currentColor" x="4" y="7" width="1" height="1"/>
+        <rect fill="currentColor" x="5" y="8" width="1" height="1"/>
+        <rect fill="currentColor" x="6" y="9" width="1" height="1"/>
+        <rect fill="currentColor" x="7" y="10" width="1" height="1"/>
+      </svg>
+
+      <span class="u-sr-only">Rayen Bouamaid</span>
+    </a>
+  </div><!-- .site-foot__logo -->
+  <div class="site-foot__links">
+  <a href="https://www.behance.net/rayenbouamaid125" target="_blank">Behance</a>
+  <a href="https://www.linkedin.com/in/rayen-bouamaid-b6a0a0308/" target="_blank">LinkedIn</a>
+  <a href="mailto:rayenbouamaid125@gmail.com">Email</a>
+</div>
+</footer>
+
+<style lang="scss">
+  .site-foot {
+    @include flex(row, center, center);
+
+    position: relative;
+    z-index: 3;
+
+    padding: 1.5rem;
+
+    border-top: 1px solid color(secondary);
+
+    @include mq(phone) {
+      padding: 1rem;
+    }
+
+    &__logo {
+      svg {
+        display: block;
+        width: 3rem;
+        height: 3rem;
+
+        @include mq(phone) {
+          width: 1.875rem;
+          height: 1.875rem;
+        }
+      }
+    }
+
+    &__links {
+      display: flex;
+      gap: 2rem;
+      margin-left: auto;
+
+      a {
+        color: color(secondary);
+        font: 700 12px / 1 font-family(fraktion);
+        letter-spacing: 0.1em;
+        text-decoration: none;
+        text-transform: uppercase;
+        opacity: 0.6;
+        transition: opacity 0.3s;
+
+        &:hover {
+          opacity: 1;
+        }
+      }
+    }
+  }
+</style>

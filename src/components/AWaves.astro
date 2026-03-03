@@ -1,0 +1,240 @@
+---
+const { class: className } = Astro.props
+---
+
+<a-waves class:list={className} data-intersect>
+  <canvas class="js-canvas"></canvas>
+</a-waves>
+
+<script>
+  import Emitter from '../utils/Emitter'
+
+  class AWaves extends HTMLElement {
+    canvas: HTMLCanvasElement
+    ctx: CanvasRenderingContext2D
+    bounding: { width: number; height: number }
+    mouse: { x: number; y: number; active: boolean }
+    particles: any[]
+    isInteractive: boolean
+    isPaused: boolean
+
+    readonly COUNT = 150
+    readonly CONNECT_DIST = 140
+    readonly MOUSE_DIST = 150
+
+    connectedCallback() {
+      this.canvas = this.querySelector('.js-canvas')
+      this.ctx    = this.canvas.getContext('2d')
+      this.mouse  = { x: -999, y: -999, active: false }
+      this.particles = []
+      this.isInteractive = false
+      this.isPaused = true
+
+      this.setSize()
+      this.spawnParticles()
+      this.bindEvents()
+    }
+
+    bindEvents() {
+      Emitter.on('resize', this.onResize, this)
+      this.addEventListener('mousemove', this.onMouseMove.bind(this))
+      this.addEventListener('touchmove', this.onTouchMove.bind(this))
+      this.addEventListener('mouseleave', () => {
+        this.mouse.active = false
+        this.mouse.x = -999
+        this.mouse.y = -999
+      })
+      this.addEventListener('intersect', this.onIntersect.bind(this), { passive: true })
+      this.addEventListener('introend', () => { this.isInteractive = true })
+    }
+
+    onResize() {
+      this.setSize()
+      this.spawnParticles()
+    }
+
+    onMouseMove(e: MouseEvent) {
+      if (!this.isInteractive) return
+      const rect = this.getBoundingClientRect()
+      this.mouse.x = e.clientX - rect.left
+      this.mouse.y = e.clientY - rect.top
+      this.mouse.active = true
+    }
+
+    onTouchMove(e: TouchEvent) {
+      e.preventDefault()
+      if (!this.isInteractive) return
+      const rect = this.getBoundingClientRect()
+      const t = e.touches[0]
+      this.mouse.x = t.clientX - rect.left
+      this.mouse.y = t.clientY - rect.top
+      this.mouse.active = true
+    }
+
+    onIntersect(e: any) {
+      this.isPaused = !e.detail.isIntersecting
+      if (this.isPaused) {
+        Emitter.off('tick', this.tick, this)
+      } else {
+        Emitter.on('tick', this.tick, this)
+      }
+    }
+
+    setSize() {
+      this.bounding = {
+        width:  this.clientWidth,
+        height: this.clientHeight,
+      }
+      this.canvas.width  = this.bounding.width
+      this.canvas.height = this.bounding.height
+    }
+
+    spawnParticles() {
+      const { width, height } = this.bounding
+      this.particles = []
+      for (let i = 0; i < this.COUNT; i++) {
+        this.particles.push({
+          x:  Math.random() * width,
+          y:  Math.random() * height,
+          vx: (Math.random() - 0.5) * 0.4,
+          vy: (Math.random() - 0.5) * 0.4,
+          r:  Math.random() * 1.5 + 0.5,
+        })
+      }
+    }
+
+    // Get the site's current secondary color (black or white depending on theme)
+    getColor() {
+      return getComputedStyle(this).getPropertyValue('--color-secondary').trim() || '#160000'
+    }
+
+    tick() {
+      const { ctx, particles, mouse, bounding } = this
+      const { width, height } = bounding
+      const baseColor   = this.getColor()
+      const accentColor = '#F40C3F'
+
+      ctx.clearRect(0, 0, width, height)
+
+      // Move particles
+      particles.forEach(p => {
+        p.x += p.vx
+        p.y += p.vy
+        if (p.x < 0 || p.x > width)  p.vx *= -1
+        if (p.y < 0 || p.y > height) p.vy *= -1
+
+        if (mouse.active) {
+          const dx   = p.x - mouse.x
+          const dy   = p.y - mouse.y
+          const dist = Math.hypot(dx, dy)
+          if (dist < this.MOUSE_DIST && dist > 0) {
+            const force = (this.MOUSE_DIST - dist) / this.MOUSE_DIST
+            p.vx += (dx / dist) * force * 0.3
+            p.vy += (dy / dist) * force * 0.3
+          }
+        }
+
+        const speed = Math.hypot(p.vx, p.vy)
+        if (speed > 1.5) { p.vx *= 0.95; p.vy *= 0.95 }
+      })
+
+      // Draw connections between particles
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx   = particles[i].x - particles[j].x
+          const dy   = particles[i].y - particles[j].y
+          const dist = Math.hypot(dx, dy)
+
+          if (dist < this.CONNECT_DIST) {
+            const alpha    = (1 - dist / this.CONNECT_DIST) * 0.4
+            const mx       = (particles[i].x + particles[j].x) / 2
+            const my       = (particles[i].y + particles[j].y) / 2
+            const mdist    = mouse.active ? Math.hypot(mx - mouse.x, my - mouse.y) : 999
+            const mInfluence = Math.max(0, 1 - mdist / 200)
+
+            if (mInfluence > 0.1) {
+              ctx.strokeStyle = `rgba(244,12,63,${alpha + mInfluence * 0.5})`
+            } else {
+              // Parse base color into rgba
+              ctx.strokeStyle = this.colorWithAlpha(baseColor, alpha)
+            }
+            ctx.lineWidth = 0.5
+            ctx.beginPath()
+            ctx.moveTo(particles[i].x, particles[i].y)
+            ctx.lineTo(particles[j].x, particles[j].y)
+            ctx.stroke()
+          }
+        }
+      }
+
+      // Draw mouse connections
+      if (mouse.active && mouse.x !== -999) {
+        particles.forEach(p => {
+          const dist = Math.hypot(p.x - mouse.x, p.y - mouse.y)
+          if (dist < this.MOUSE_DIST) {
+            const alpha = (1 - dist / this.MOUSE_DIST) * 0.8
+            ctx.strokeStyle = `rgba(244,12,63,${alpha})`
+            ctx.lineWidth   = 1
+            ctx.beginPath()
+            ctx.moveTo(mouse.x, mouse.y)
+            ctx.lineTo(p.x, p.y)
+            ctx.stroke()
+          }
+        })
+
+        // Mouse dot
+        ctx.fillStyle   = accentColor
+        ctx.globalAlpha = 0.9
+        ctx.beginPath()
+        ctx.arc(mouse.x, mouse.y, 3, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.globalAlpha = 1
+      }
+
+      // Draw particles
+      particles.forEach(p => {
+        const dist = mouse.active ? Math.hypot(p.x - mouse.x, p.y - mouse.y) : 999
+        const near = Math.max(0, 1 - dist / this.MOUSE_DIST)
+        ctx.fillStyle   = near > 0.3 ? accentColor : baseColor
+        ctx.globalAlpha = 0.5 + near * 0.5
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, p.r + near * 2, 0, Math.PI * 2)
+        ctx.fill()
+      })
+
+      ctx.globalAlpha = 1
+    }
+
+    // Helper — convert hex to rgba string
+    colorWithAlpha(hex: string, alpha: number): string {
+      hex = hex.replace('#', '').trim()
+      if (hex.length === 3) hex = hex.split('').map(c => c+c).join('')
+      const r = parseInt(hex.substring(0,2), 16)
+      const g = parseInt(hex.substring(2,4), 16)
+      const b = parseInt(hex.substring(4,6), 16)
+      return `rgba(${r},${g},${b},${alpha})`
+    }
+  }
+
+  customElements.define('a-waves', AWaves)
+</script>
+
+<style lang="scss">
+  a-waves {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+  }
+</style>

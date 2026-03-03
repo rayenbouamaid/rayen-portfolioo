@@ -1,0 +1,504 @@
+---
+const menu = [
+  { id: 'about',   text: 'About'   },
+  { id: 'work',    text: 'Work'    },
+  { id: 'contact', text: 'Contact' },
+]
+---
+
+<header class="site-head" data-intersect>
+  <div class="site-head__progress js-progress"></div>
+  <div class="site-head__container">
+
+    <div class="sb-logo">
+      <a href="/">
+        <svg class="js-logo" viewBox="0 0 11 13" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges" style="width:3rem;height:3rem;">
+          <rect fill="currentColor" x="1" y="1" width="1" height="1"/>
+          <rect fill="currentColor" x="1" y="2" width="1" height="1"/>
+          <rect fill="currentColor" x="1" y="3" width="1" height="1"/>
+          <rect fill="currentColor" x="1" y="4" width="1" height="1"/>
+          <rect fill="currentColor" x="1" y="5" width="1" height="1"/>
+          <rect fill="currentColor" x="1" y="6" width="1" height="1" opacity="0.5"/>
+          <rect fill="currentColor" x="1" y="7" width="1" height="1" opacity="0.5"/>
+          <rect fill="currentColor" x="1" y="8" width="1" height="1" opacity="0.5"/>
+          <rect fill="currentColor" x="1" y="9" width="1" height="1" opacity="0.5"/>
+          <rect fill="currentColor" x="1" y="10" width="1" height="1" opacity="0.5"/>
+          <rect fill="currentColor" x="2" y="1" width="1" height="1"/>
+          <rect fill="currentColor" x="3" y="1" width="1" height="1"/>
+          <rect fill="currentColor" x="4" y="1" width="1" height="1"/>
+          <rect fill="currentColor" x="5" y="1" width="1" height="1"/>
+          <rect fill="currentColor" x="6" y="1" width="1" height="1"/>
+          <rect fill="currentColor" x="7" y="2" width="1" height="1"/>
+          <rect fill="currentColor" x="7" y="3" width="1" height="1"/>
+          <rect fill="currentColor" x="6" y="4" width="1" height="1"/>
+          <rect fill="currentColor" x="5" y="5" width="1" height="1"/>
+          <rect fill="currentColor" x="4" y="5" width="1" height="1"/>
+          <rect fill="currentColor" x="3" y="5" width="1" height="1"/>
+          <rect fill="currentColor" x="2" y="5" width="1" height="1"/>
+          <rect fill="currentColor" x="3" y="6" width="1" height="1"/>
+          <rect fill="currentColor" x="4" y="7" width="1" height="1"/>
+          <rect fill="currentColor" x="5" y="8" width="1" height="1"/>
+          <rect fill="currentColor" x="6" y="9" width="1" height="1"/>
+          <rect fill="currentColor" x="7" y="10" width="1" height="1"/>
+        </svg>
+        <span class="u-sr-only">Rayen Bouamaid</span>
+      </a>
+    </div>
+
+    <div class="sb-status">
+      <div class="sb-status__dot"></div>
+      <span class="sb-status__text">Available for freelance</span>
+    </div>
+
+    <nav class="sb-menu">
+      <ul class="sb__list">
+        {menu.map((item) => (
+          <li class="sb__item js-menu-item">
+            <a href={'#' + item.id} class="js-menu-link">
+              <span class="sb__text">{item.text}</span>
+              <span class="sb__arrow">→</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+
+    <div class="sb-console">
+      <div class="sb-console__inner js-console"></div>
+    </div>
+
+    <div class="sb-availability">
+      <div class="sb-availability__location">Tunis, Tunisia</div>
+      <button class="sb-availability__copy js-copy" type="button">
+        <span class="lbl-copy">rayenbouamaid125@gmail.com</span>
+        <span class="lbl-done">✓ Copied!</span>
+        <span class="copy-icon">⎘</span>
+      </button>
+    </div>
+
+  </div>
+</header>
+
+<script>
+  import Emitter from '../utils/Emitter'
+  import Ticker from '../utils/Ticker'
+  import { gsap } from 'gsap'
+
+  class Section {
+    el: HTMLElement
+    console: HTMLElement
+    links: NodeListOf<HTMLElement>
+
+    messages: string[]
+    message: string
+    messageLineBreak: boolean
+    lastMessage: string
+    lastTypeTime: number
+    writeDelay: number
+    canWrite: boolean
+    isPaused: boolean
+
+    constructor() {
+      this.el       = document.querySelector('.site-head')
+      this.console  = document.querySelector('.js-console')
+      this.links    = this.el.querySelectorAll('.js-menu-link')
+
+      this.messages = [
+        'Creative Designer & Multimedia Developer',
+        'Based in Tunis, Tunisia',
+        'Bachelor in Communication Multimédia — ISAMM',
+        'Specializing in branding, motion & 3D',
+        'Led creative direction at Google Developer Group',
+        'Built AR/VR experiences with Unity & Vuforia',
+        'Designed PawCycle — best project in specialization',
+        'From brand identity to full game design',
+        'Every project starts with a concept',
+        'And ends with a story',
+        'Figma. Blender. After Effects. Unity.',
+        'Things meant to be felt, not just seen',
+        'Currently open to freelance collaborations',
+        'Reach out → rayenbouamaid125@gmail.com',
+        'Gladiatoria Festival — full brand & Instagram',
+        'Digiwise — deepfake awareness platform',
+        'Zombie Survival — 3D roguelite game',
+        'Dental Surgery — motion graphics',
+      ]
+      this.message          = ''
+      this.messageLineBreak = false
+      this.lastMessage      = ''
+      this.lastTypeTime     = 0
+      this.writeDelay       = 0
+      this.canWrite         = false
+      this.isPaused         = true
+
+      Ticker.nextTick(this.init, this)
+    }
+
+    init() {
+      this.bindEvents()
+    }
+
+    bindEvents() {
+      this.links.forEach((link) => {
+        link.addEventListener('click', this.moveToSection.bind(this))
+      })
+
+      document.addEventListener('intro', this.intro.bind(this), { once: true })
+
+      this.el.addEventListener('intersect', this.onIntersect.bind(this), {
+        passive: true,
+      })
+    }
+
+    onIntersect(e) {
+      this.isPaused = !e.detail.isIntersecting
+      if (this.isPaused) {
+        Emitter.off('tick', this.updateConsole, this)
+      } else {
+        Emitter.on('tick', this.updateConsole, this)
+      }
+    }
+
+    intro() {
+      const logo      = this.el.querySelector('.js-logo')
+      const menuItems = this.el.querySelectorAll('.js-menu-item')
+      const items     = [logo, ...menuItems]
+
+      const tl = gsap.timeline()
+
+      gsap.set(this.el, { opacity: 1, y: '-100%' })
+
+      tl.to(this.el, {
+        y: '0%',
+        duration: 1,
+        ease: 'expo.out',
+      }, 0.5)
+
+      tl.from(items, {
+        y: '-100%', duration: 1, ease: 'expo.out', stagger: 0.1,
+      }, 0.8)
+
+      tl.call(() => { this.canWrite = true }, null, 1)
+    }
+
+    moveToSection(e) {
+      e.preventDefault()
+      const id = e.currentTarget.getAttribute('href')
+      window.lenis.scrollTo(id, {
+        duration: 1.5,
+        easing: (t) =>
+          t < 0.5 ? 16 * t * t * t * t * t : 1 + 16 * --t * t * t * t * t,
+      })
+    }
+
+    updateConsole(time) {
+      if (!this.canWrite || time - this.lastTypeTime < this.writeDelay) return
+
+      if (this.message === '') {
+        this.message    = this.getRandomMessage()
+        this.writeDelay = 2000
+      } else {
+        if (this.message === this.lastMessage || this.messageLineBreak) {
+          this.console.textContent += '\n'
+        }
+
+        const char  = this.message.charAt(0)
+        this.message = this.message.substring(1)
+
+        if      (char === ',')  { this.writeDelay = 100 }
+        else if (char === ' ')  { this.writeDelay = 40  }
+        else if (char === '…')  { this.writeDelay = 400 }
+        else if (char === '.')  { this.writeDelay = 300 }
+        else                    { this.writeDelay = 20  }
+
+        this.console.textContent += char
+        this.messageLineBreak = char === '…'
+      }
+
+      this.console.textContent = this.console.textContent
+        .split('\n').slice(-5).join('\n')
+
+      this.lastTypeTime = time
+    }
+
+    getRandomMessage() {
+      let msg = this.messages[Math.floor(Math.random() * this.messages.length)]
+      if (msg === this.lastMessage) msg = this.getRandomMessage()
+      this.lastMessage = msg
+      return msg
+    }
+  }
+
+  new Section()
+
+  // Scroll progress + hide header after hero
+  const hero     = document.querySelector('.s-hero') as HTMLElement
+  const header   = document.querySelector('.site-head') as HTMLElement
+  const progress = document.querySelector('.js-progress') as HTMLElement
+
+  window.addEventListener('scroll', () => {
+    if (!hero || !header || !progress) return
+
+    const heroBottom = hero.getBoundingClientRect().bottom
+
+    if (heroBottom <= 0) {
+      header.style.transform = 'translateY(-100%)'
+      progress.style.width   = '100%'
+    } else {
+      header.style.transform = 'translateY(0)'
+      const heroHeight       = hero.getBoundingClientRect().height
+      const scrolled         = hero.getBoundingClientRect().top * -1
+      const pct              = Math.max(0, Math.min(100, (scrolled / heroHeight) * 100))
+      progress.style.width   = pct + '%'
+    }
+    
+  }, { passive: true })
+
+  // Copy email
+  const copyBtn = document.querySelector('.js-copy') as HTMLElement
+  if (copyBtn) {
+    copyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText('rayenbouamaid125@gmail.com').then(() => {
+        copyBtn.classList.add('is-copied')
+        setTimeout(() => copyBtn.classList.remove('is-copied'), 2000)
+      })
+    })
+  }
+</script>
+
+<style lang="scss">
+  .site-head {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: color(primary);
+    transition: transform 0.4s cubic-bezier(0.76, 0, 0.24, 1);
+    width: 100%;
+    border-bottom: 1px solid color(secondary);
+
+
+    &__container {
+      @include flex(row, stretch, flex-start);
+      width: 100%;
+      height: 6rem;
+
+      @include mq(phone) { height: 4rem; }
+    }
+
+    &__progress {
+      position: absolute;
+      bottom: -1px; left: 0;
+      height: 2px;
+      background: #F40C3F;
+      width: 0%;
+      z-index: 2;
+      box-shadow: 0 0 8px rgba(244,12,63,0.5);
+      transition: width 0.05s linear;
+    }
+
+    .sb-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 6rem; height: 6rem;
+      border-right: 1px solid color(secondary);
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+
+      @include mq(phone) { width: 4rem; height: 4rem; }
+
+      &::before {
+        content: '';
+        position: absolute; inset: 0;
+        background: color(secondary);
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.4s ease(in-out-quint);
+      }
+
+      &:hover::before { transform: scaleX(1); }
+
+      a {
+        position: relative; z-index: 1;
+        display: flex; align-items: center; justify-content: center;
+        width: 100%; height: 100%;
+        color: color(secondary);
+        transition: color 0.3s 0.1s;
+      }
+
+      &:hover a { color: color(primary); }
+
+      svg {
+        width: 3rem; height: 3rem;
+        @include mq(phone) { width: 1.875rem; height: 1.875rem; }
+      }
+    }
+
+    .sb-status {
+      display: flex;
+      align-items: center;
+      padding: 0 1.5rem;
+      gap: 0.75rem;
+      border-right: 1px solid color(secondary);
+      flex-shrink: 0;
+
+      @include mq(tablet-sm) { display: none; }
+
+      &__dot {
+        width: 6px; height: 6px;
+        background: #F40C3F;
+        flex-shrink: 0;
+        animation: statusPulse 2s ease infinite;
+      }
+
+      @keyframes statusPulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50%       { opacity: 0.3; transform: scale(0.5); }
+      }
+
+      &__text {
+        font: 400 9px / 1 font-family(fraktion);
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        opacity: 0.5;
+        white-space: nowrap;
+      }
+    }
+
+    .sb-menu {
+      border-left: 1px solid color(secondary);
+
+      @include mq(tablet) { display: none; }
+
+      .sb__list {
+        @include flex(row, center, flex-start);
+        margin: 0; padding: 0;
+        height: 100%;
+        list-style: none;
+      }
+
+      .sb__item { margin: 0; padding: 0; }
+
+      a {
+        display: flex; align-items: center;
+        height: 100%;
+        padding: 0 2.5rem;
+        color: color(secondary);
+        font: 700 11px / 1 font-family(fraktion);
+        letter-spacing: 0.15em;
+        text-decoration: none;
+        text-transform: uppercase;
+        position: relative;
+        gap: 0.4rem;
+
+        @include mq(desktop-xs) { padding: 0 1.5rem; }
+
+        &::before {
+          content: '';
+          position: absolute;
+          bottom: 0; left: 0;
+          width: 100%; height: 2px;
+          background: #F40C3F;
+          transform: scaleX(0);
+          transform-origin: right;
+          transition: transform 0.4s ease(in-out-quint);
+        }
+
+        &:hover::before {
+          transform: scaleX(1);
+          transform-origin: left;
+        }
+      }
+
+      .sb__arrow {
+        opacity: 0;
+        transform: translateX(-4px);
+        transition: opacity 0.3s, transform 0.3s;
+        color: #F40C3F;
+        font-size: 10px;
+      }
+
+      a:hover .sb__arrow { opacity: 1; transform: translateX(0); }
+    }
+
+    .sb-console {
+      @include flex(column, flex-start, flex-end);
+      flex: 1;
+      padding: 1.25rem 1.5rem;
+      font: 400 8px / 1.5 font-family(fraktion);
+      text-transform: uppercase;
+      white-space: pre-line;
+      overflow: hidden;
+      border-left: 1px solid color(secondary);
+
+      @include mq(tablet-sm) { display: none; }
+
+      &__inner {
+        @include flex(column, flex-start, flex-end);
+        height: 4.8em;
+        overflow: hidden;
+        opacity: 0.4;
+      }
+    }
+
+    .sb-availability {
+      border-left: 1px solid color(secondary);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 0 1.5rem;
+      gap: 0.45rem;
+      position: relative;
+      flex-shrink: 0;
+
+      @include mq(phone) { display: none; }
+
+      &::before {
+        content: '';
+        position: absolute;
+        top: 50%; left: 0;
+        width: 100%; height: 1px;
+        background: color(secondary);
+        opacity: 0.12;
+      }
+
+      &__location {
+        font: 200 10px / 1 font-family(fraktion);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        opacity: 0.35;
+        white-space: nowrap;
+      }
+
+      &__copy {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        font: 400 9px / 1 font-family(fraktion);
+        letter-spacing: 0.06em;
+        color: color(secondary);
+        padding: 0.3rem 0.5rem;
+        margin-top: 2rem;
+        border: 1px solid color(secondary);
+        background: none;
+        cursor: pointer;
+        white-space: nowrap;
+        opacity: 0.4;
+        transition: border-color 0.3s, color 0.3s, opacity 0.3s;
+
+        &:hover { border-color: #F40C3F; color: #F40C3F; opacity: 1; }
+        &.is-copied { border-color: #F40C3F; color: #F40C3F; opacity: 1; }
+
+        .lbl-copy { display: inline; }
+        .lbl-done { display: none; }
+        &.is-copied .lbl-copy { display: none; }
+        &.is-copied .lbl-done { display: inline; }
+
+        .copy-icon { opacity: 0.4; transition: opacity 0.3s; }
+        &:hover .copy-icon,
+        &.is-copied .copy-icon { opacity: 1; }
+      }
+    }
+  }
+</style>
