@@ -1,0 +1,368 @@
+---
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Rayen — Remote Control</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --primary: #f0e6e6;
+      --secondary: #160000;
+      --red: #F40C3F;
+    }
+
+    body {
+      background: var(--secondary);
+      color: var(--primary);
+      font-family: 'Courier New', monospace;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── HEADER ── */
+    .r-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid rgba(240,230,230,0.15);
+    }
+
+    .r-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .r-logo svg {
+      width: 1.5rem;
+      height: 1.5rem;
+      color: var(--primary);
+    }
+
+    .r-logo__name {
+      font: 700 11px / 1 'Courier New', monospace;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      opacity: 0.6;
+    }
+
+    .r-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font: 400 9px / 1 'Courier New', monospace;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    .r-status__dot {
+      width: 6px;
+      height: 6px;
+      background: var(--red);
+      animation: pulse 2s ease infinite;
+    }
+
+    .r-status__dot.is-connected {
+      background: #00ff88;
+      animation: pulse-green 2s ease infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    @keyframes pulse-green {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.7); }
+    }
+
+    /* ── LABEL ── */
+    .r-label {
+      padding: 1.25rem 1.5rem 0.5rem;
+      font: 400 8px / 1 'Courier New', monospace;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      opacity: 0.3;
+    }
+
+    /* ── SCROLL CONTROLS ── */
+    .r-scroll {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: rgba(240,230,230,0.1);
+      margin: 1rem 1.5rem;
+      border: 1px solid rgba(240,230,230,0.1);
+    }
+
+    .r-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 2rem 1rem;
+      background: var(--secondary);
+      border: none;
+      color: var(--primary);
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+      position: relative;
+      overflow: hidden;
+      transition: background 0.15s;
+      user-select: none;
+    }
+
+    .r-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--red);
+      transform: scaleY(0);
+      transform-origin: bottom;
+      transition: transform 0.2s cubic-bezier(0.76, 0, 0.24, 1);
+    }
+
+    .r-btn:active::before { transform: scaleY(1); }
+
+    .r-btn__icon {
+      position: relative;
+      z-index: 1;
+      font-size: 1.5rem;
+      line-height: 1;
+      transition: transform 0.15s;
+    }
+
+    .r-btn:active .r-btn__icon { transform: scale(0.85); }
+
+    .r-btn__label {
+      position: relative;
+      z-index: 1;
+      font: 700 9px / 1 'Courier New', monospace;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      opacity: 0.5;
+    }
+
+    /* ── NAV CONTROLS ── */
+    .r-nav {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1px;
+      background: rgba(240,230,230,0.1);
+      margin: 0 1.5rem;
+      border: 1px solid rgba(240,230,230,0.1);
+    }
+
+    .r-btn--nav {
+      padding: 1.5rem 0.5rem;
+    }
+
+    .r-btn--nav .r-btn__icon {
+      font-size: 1rem;
+    }
+
+    /* ── HOLD TO SCROLL ── */
+    .r-hold {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: rgba(240,230,230,0.1);
+      margin: 1rem 1.5rem 0;
+      border: 1px solid rgba(240,230,230,0.1);
+    }
+
+    .r-btn--hold {
+      padding: 1.25rem 1rem;
+    }
+
+    .r-btn--hold.is-holding::before { transform: scaleY(1); }
+
+    /* ── FOOTER ── */
+    .r-footer {
+      margin-top: auto;
+      padding: 1rem 1.5rem;
+      font: 400 8px / 1 'Courier New', monospace;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      opacity: 0.2;
+      text-align: center;
+      border-top: 1px solid rgba(240,230,230,0.08);
+    }
+
+    /* ── FEEDBACK FLASH ── */
+    .r-flash {
+      position: fixed;
+      inset: 0;
+      background: var(--red);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 99;
+      transition: opacity 0.1s;
+    }
+
+    .r-flash.is-visible { opacity: 0.08; }
+  </style>
+</head>
+<body>
+
+<div class="r-flash" id="flash"></div>
+
+<div class="r-header">
+  <div class="r-logo">
+    <svg viewBox="0 0 11 13" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+      <rect fill="currentColor" x="1" y="1" width="1" height="1"/>
+      <rect fill="currentColor" x="1" y="2" width="1" height="1"/>
+      <rect fill="currentColor" x="1" y="3" width="1" height="1"/>
+      <rect fill="currentColor" x="1" y="4" width="1" height="1"/>
+      <rect fill="currentColor" x="1" y="5" width="1" height="1"/>
+      <rect fill="currentColor" x="1" y="6" width="1" height="1" opacity="0.5"/>
+      <rect fill="currentColor" x="1" y="7" width="1" height="1" opacity="0.5"/>
+      <rect fill="currentColor" x="1" y="8" width="1" height="1" opacity="0.5"/>
+      <rect fill="currentColor" x="1" y="9" width="1" height="1" opacity="0.5"/>
+      <rect fill="currentColor" x="1" y="10" width="1" height="1" opacity="0.5"/>
+      <rect fill="currentColor" x="2" y="1" width="1" height="1"/>
+      <rect fill="currentColor" x="3" y="1" width="1" height="1"/>
+      <rect fill="currentColor" x="4" y="1" width="1" height="1"/>
+      <rect fill="currentColor" x="5" y="1" width="1" height="1"/>
+      <rect fill="currentColor" x="6" y="1" width="1" height="1"/>
+      <rect fill="currentColor" x="7" y="2" width="1" height="1"/>
+      <rect fill="currentColor" x="7" y="3" width="1" height="1"/>
+      <rect fill="currentColor" x="6" y="4" width="1" height="1"/>
+      <rect fill="currentColor" x="5" y="5" width="1" height="1"/>
+      <rect fill="currentColor" x="4" y="5" width="1" height="1"/>
+      <rect fill="currentColor" x="3" y="5" width="1" height="1"/>
+      <rect fill="currentColor" x="2" y="5" width="1" height="1"/>
+      <rect fill="currentColor" x="3" y="6" width="1" height="1"/>
+      <rect fill="currentColor" x="4" y="7" width="1" height="1"/>
+      <rect fill="currentColor" x="5" y="8" width="1" height="1"/>
+      <rect fill="currentColor" x="6" y="9" width="1" height="1"/>
+      <rect fill="currentColor" x="7" y="10" width="1" height="1"/>
+    </svg>
+    <span class="r-logo__name">Rayen — Remote</span>
+  </div>
+  <div class="r-status">
+    <div class="r-status__dot" id="statusDot"></div>
+    <span id="statusText">Connecting</span>
+  </div>
+</div>
+
+<div class="r-label">Scroll</div>
+<div class="r-scroll">
+  <button class="r-btn" id="btnUp" data-action="scroll-up">
+    <span class="r-btn__icon">↑</span>
+    <span class="r-btn__label">Up</span>
+  </button>
+  <button class="r-btn" id="btnDown" data-action="scroll-down">
+    <span class="r-btn__icon">↓</span>
+    <span class="r-btn__label">Down</span>
+  </button>
+</div>
+
+<div class="r-label">Hold to scroll</div>
+<div class="r-hold">
+  <button class="r-btn r-btn--hold" id="holdUp" data-action="hold-up">
+    <span class="r-btn__icon">⇈</span>
+    <span class="r-btn__label">Hold Up</span>
+  </button>
+  <button class="r-btn r-btn--hold" id="holdDown" data-action="hold-down">
+    <span class="r-btn__icon">⇊</span>
+    <span class="r-btn__label">Hold Down</span>
+  </button>
+</div>
+
+<div class="r-label">Navigate</div>
+<div class="r-nav">
+  <button class="r-btn r-btn--nav" data-action="nav-about">
+    <span class="r-btn__icon">◈</span>
+    <span class="r-btn__label">About</span>
+  </button>
+  <button class="r-btn r-btn--nav" data-action="nav-work">
+    <span class="r-btn__icon">◉</span>
+    <span class="r-btn__label">Work</span>
+  </button>
+  <button class="r-btn r-btn--nav" data-action="nav-contact">
+    <span class="r-btn__icon">✦</span>
+    <span class="r-btn__label">Contact</span>
+  </button>
+</div>
+
+<div class="r-footer">Rayen Bouamaid Portfolio — Remote Control</div>
+
+<script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
+<script>
+  const PUSHER_KEY    = '309bead15987315d1c4c'
+  const PUSHER_CLUSTER = 'eu'
+  const CHANNEL_NAME  = 'portfolio-remote'
+
+  const pusher  = new Pusher(PUSHER_KEY, { cluster: PUSHER_CLUSTER })
+  const channel = pusher.subscribe(CHANNEL_NAME)
+
+  const statusDot  = document.getElementById('statusDot')
+  const statusText = document.getElementById('statusText')
+  const flash      = document.getElementById('flash')
+
+  pusher.connection.bind('connected', () => {
+    statusDot.classList.add('is-connected')
+    statusText.textContent = 'Connected'
+  })
+
+  pusher.connection.bind('disconnected', () => {
+    statusDot.classList.remove('is-connected')
+    statusText.textContent = 'Disconnected'
+  })
+
+  function flashScreen() {
+    flash.classList.add('is-visible')
+    setTimeout(() => flash.classList.remove('is-visible'), 150)
+  }
+
+  async function sendAction(action) {
+    flashScreen()
+    await fetch(window.location.origin + '/api/remote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    })
+  }
+
+  // Tap buttons
+  document.querySelectorAll('.r-btn:not(.r-btn--hold)').forEach(btn => {
+    btn.addEventListener('click', () => {
+      sendAction(btn.dataset.action)
+    })
+  })
+
+  // Hold buttons
+  let holdInterval = null
+
+  function startHold(action) {
+    sendAction(action)
+    holdInterval = setInterval(() => sendAction(action), 120)
+  }
+
+  function stopHold() {
+    clearInterval(holdInterval)
+    holdInterval = null
+  }
+
+  document.querySelectorAll('.r-btn--hold').forEach(btn => {
+    btn.addEventListener('pointerdown', () => {
+      btn.classList.add('is-holding')
+      startHold(btn.dataset.action)
+    })
+    btn.addEventListener('pointerup',   () => { btn.classList.remove('is-holding'); stopHold() })
+    btn.addEventListener('pointerleave',() => { btn.classList.remove('is-holding'); stopHold() })
+  })
+</script>
+
+</body>
+</html>

@@ -1,0 +1,241 @@
+---
+// SRemote.astro — QR Code remote control button
+---
+
+<div class="s-remote">
+  <button class="s-remote__btn js-remote-btn" type="button" aria-label="Scan to control">
+    <svg viewBox="0 0 11 13" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+      <rect fill="currentColor" x="1" y="1" width="1" height="1"/>
+      <rect fill="currentColor" x="1" y="2" width="1" height="1"/>
+      <rect fill="currentColor" x="1" y="3" width="1" height="1"/>
+      <rect fill="currentColor" x="1" y="4" width="1" height="1"/>
+      <rect fill="currentColor" x="1" y="5" width="1" height="1"/>
+      <rect fill="currentColor" x="1" y="6" width="1" height="1" opacity="0.5"/>
+      <rect fill="currentColor" x="1" y="7" width="1" height="1" opacity="0.5"/>
+      <rect fill="currentColor" x="1" y="8" width="1" height="1" opacity="0.5"/>
+      <rect fill="currentColor" x="1" y="9" width="1" height="1" opacity="0.5"/>
+      <rect fill="currentColor" x="1" y="10" width="1" height="1" opacity="0.5"/>
+      <rect fill="currentColor" x="2" y="1" width="1" height="1"/>
+      <rect fill="currentColor" x="3" y="1" width="1" height="1"/>
+      <rect fill="currentColor" x="4" y="1" width="1" height="1"/>
+      <rect fill="currentColor" x="5" y="1" width="1" height="1"/>
+      <rect fill="currentColor" x="6" y="1" width="1" height="1"/>
+      <rect fill="currentColor" x="7" y="2" width="1" height="1"/>
+      <rect fill="currentColor" x="7" y="3" width="1" height="1"/>
+      <rect fill="currentColor" x="6" y="4" width="1" height="1"/>
+      <rect fill="currentColor" x="5" y="5" width="1" height="1"/>
+      <rect fill="currentColor" x="4" y="5" width="1" height="1"/>
+      <rect fill="currentColor" x="3" y="5" width="1" height="1"/>
+      <rect fill="currentColor" x="2" y="5" width="1" height="1"/>
+      <rect fill="currentColor" x="3" y="6" width="1" height="1"/>
+      <rect fill="currentColor" x="4" y="7" width="1" height="1"/>
+      <rect fill="currentColor" x="5" y="8" width="1" height="1"/>
+      <rect fill="currentColor" x="6" y="9" width="1" height="1"/>
+      <rect fill="currentColor" x="7" y="10" width="1" height="1"/>
+    </svg>
+    <span>Remote</span>
+  </button>
+
+  <div class="s-remote__popup js-remote-popup">
+    <div class="s-remote__qr" id="remoteQr"></div>
+    <p class="s-remote__hint">Scan to control</p>
+    <div class="s-remote__status">
+      <div class="s-remote__dot js-remote-dot"></div>
+      <span class="js-remote-status">Waiting for phone</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  import Pusher from 'pusher-js'
+
+  const PUSHER_KEY     = '309bead15987315d1c4c'
+  const PUSHER_CLUSTER = 'eu'
+  const REMOTE_URL = window.location.href.includes('localhost') 
+  ? 'http://192.168.1.16:4321/remote'
+  : window.location.origin + '/remote'
+
+  // ── Generate QR code using free API ──
+  const qrEl = document.getElementById('remoteQr')
+  const img   = document.createElement('img')
+  img.src     = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(REMOTE_URL)}&bgcolor=160000&color=f0e6e6&format=png`
+  img.width   = 160
+  img.height  = 160
+  qrEl.appendChild(img)
+
+  // ── Toggle popup ──
+  const btn   = document.querySelector('.js-remote-btn')
+  const popup = document.querySelector('.js-remote-popup')
+
+  btn.addEventListener('click', () => {
+    popup.classList.toggle('is-open')
+  })
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.s-remote')) {
+      popup.classList.remove('is-open')
+    }
+  })
+
+  // ── Pusher listener ──
+  const pusher  = new Pusher(PUSHER_KEY, { cluster: PUSHER_CLUSTER })
+  const channel = pusher.subscribe('portfolio-remote')
+
+  const dot        = document.querySelector('.js-remote-dot')
+  const statusText = document.querySelector('.js-remote-status')
+
+  pusher.connection.bind('connected', () => {
+    dot.classList.add('is-connected')
+    statusText.textContent = 'Ready'
+  })
+
+  channel.bind('control', (data) => {
+    const { action } = data
+    dot.classList.add('is-active')
+    setTimeout(() => dot.classList.remove('is-active'), 300)
+
+    if (action === 'scroll-up') {
+      window.lenis?.scrollTo(window.scrollY - 300, { duration: 0.6 })
+    } else if (action === 'scroll-down') {
+      window.lenis?.scrollTo(window.scrollY + 300, { duration: 0.6 })
+    } else if (action === 'hold-up') {
+      window.lenis?.scrollTo(window.scrollY - 80, { duration: 0.2 })
+    } else if (action === 'hold-down') {
+      window.lenis?.scrollTo(window.scrollY + 80, { duration: 0.2 })
+    } else if (action === 'nav-about') {
+      window.lenis?.scrollTo('#about', { duration: 1.5 })
+    } else if (action === 'nav-work') {
+      window.lenis?.scrollTo('#work', { duration: 1.5 })
+    } else if (action === 'nav-contact') {
+      window.lenis?.scrollTo('#contact', { duration: 1.5 })
+    }
+  })
+</script>
+
+<style lang="scss">
+  .s-remote {
+    position: fixed;
+    bottom: 2rem;
+    left: 2rem;
+    z-index: 100;
+
+    @include mq(phone) {
+      bottom: 1rem;
+      left: 1rem;
+    }
+
+    &__btn {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      background: color(secondary);
+      color: color(primary);
+      border: 1px solid color(secondary);
+      cursor: pointer;
+      font: 700 9px / 1 font-family(fraktion);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      position: relative;
+      overflow: hidden;
+      transition: background 0.3s, color 0.3s;
+
+      svg {
+        width: 1rem;
+        height: 1rem;
+        flex-shrink: 0;
+      }
+
+      &::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: #F40C3F;
+        transform: scaleX(0);
+        transform-origin: left;
+        transition: transform 0.4s cubic-bezier(0.76, 0, 0.24, 1);
+      }
+
+      &:hover::before { transform: scaleX(1); }
+
+      svg, span {
+        position: relative;
+        z-index: 1;
+      }
+    }
+
+    &__popup {
+      position: absolute;
+      bottom: calc(100% + 0.75rem);
+      left: 0;
+      background: color(secondary);
+      border: 1px solid color(primary);
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+      opacity: 0;
+      transform: translateY(8px);
+      pointer-events: none;
+      transition: opacity 0.3s, transform 0.3s;
+
+      &.is-open {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: all;
+      }
+    }
+
+    &__qr {
+      img {
+        display: block;
+        image-rendering: pixelated;
+        filter: invert(0);
+      }
+    }
+
+    &__hint {
+      font: 400 9px / 1 font-family(fraktion);
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: color(primary);
+      opacity: 0.5;
+    }
+
+    &__status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font: 400 8px / 1 font-family(fraktion);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: color(primary);
+      opacity: 0.4;
+    }
+
+    &__dot {
+      width: 5px;
+      height: 5px;
+      background: color(primary);
+      opacity: 0.4;
+      transition: background 0.3s, opacity 0.3s;
+
+      &.is-connected {
+        background: #00ff88;
+        opacity: 1;
+        animation: remotePulse 2s ease infinite;
+      }
+
+      &.is-active {
+        background: #F40C3F;
+        opacity: 1;
+      }
+    }
+
+    @keyframes remotePulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+  }
+</style>

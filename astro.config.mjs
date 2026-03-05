@@ -2,13 +2,15 @@ import { defineConfig } from 'astro/config';
 import { fileURLToPath } from 'url';
 import path, { dirname } from 'path';
 
+import node from '@astrojs/node';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://public.wodniack.dev',
-
+  site: 'https://rayen-portfolio.vercel.app',
+  output: 'server',
   scopedStyleStrategy: 'class',
 
   server: {
@@ -35,5 +37,9 @@ export default defineConfig({
 
   devToolbar: {
     enabled: false
-  }
+  },
+
+  adapter: node({
+    mode: 'middleware'
+  })
 });
