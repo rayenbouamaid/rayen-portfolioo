@@ -297,70 +297,75 @@
 
 <div class="r-footer">Rayen Bouamaid Portfolio — Remote Control</div>
 
-<script src="https://js.pusher.com/8.2.0/pusher.min.js"></script>
-<script>
-  const PUSHER_KEY    = '309bead15987315d1c4c'
-  const PUSHER_CLUSTER = 'eu'
-  const CHANNEL_NAME  = 'portfolio-remote'
+<script is:inline>
+  window.addEventListener('load', () => {
+    const script = document.createElement('script')
+    script.src = 'https://js.pusher.com/8.2.0/pusher.min.js'
+    script.onload = () => {
+      const PUSHER_KEY     = '309bead15987315d1c4c'
+      const PUSHER_CLUSTER = 'eu'
+      const CHANNEL_NAME   = 'portfolio-remote'
 
-  const pusher  = new Pusher(PUSHER_KEY, { cluster: PUSHER_CLUSTER })
-  const channel = pusher.subscribe(CHANNEL_NAME)
+      const pusher  = new Pusher(PUSHER_KEY, { cluster: PUSHER_CLUSTER })
+      const channel = pusher.subscribe(CHANNEL_NAME)
 
-  const statusDot  = document.getElementById('statusDot')
-  const statusText = document.getElementById('statusText')
-  const flash      = document.getElementById('flash')
+      const statusDot  = document.getElementById('statusDot')
+      const statusText = document.getElementById('statusText')
+      const flash      = document.getElementById('flash')
 
-  pusher.connection.bind('connected', () => {
-    statusDot.classList.add('is-connected')
-    statusText.textContent = 'Connected'
-  })
+      pusher.connection.bind('connected', () => {
+        statusDot.classList.add('is-connected')
+        statusText.textContent = 'Connected'
+      })
 
-  pusher.connection.bind('disconnected', () => {
-    statusDot.classList.remove('is-connected')
-    statusText.textContent = 'Disconnected'
-  })
+      pusher.connection.bind('disconnected', () => {
+        statusDot.classList.remove('is-connected')
+        statusText.textContent = 'Disconnected'
+      })
 
-  function flashScreen() {
-    flash.classList.add('is-visible')
-    setTimeout(() => flash.classList.remove('is-visible'), 150)
-  }
+      function flashScreen() {
+        flash.classList.add('is-visible')
+        setTimeout(() => flash.classList.remove('is-visible'), 150)
+      }
 
-  async function sendAction(action) {
-    flashScreen()
-    await fetch(window.location.origin + '/api/remote', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action }),
-    })
-  }
+      async function sendAction(action) {
+        flashScreen()
+        try {
+          const res = await fetch(window.location.origin + '/api/remote', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action }),
+          })
+          const data = await res.json()
+          // ok
+        } catch(err) {
+          console.error(err)
+        }
+      }
 
-  // Tap buttons
-  document.querySelectorAll('.r-btn:not(.r-btn--hold)').forEach(btn => {
-    btn.addEventListener('click', () => {
-      sendAction(btn.dataset.action)
-    })
-  })
+      document.querySelectorAll('.r-btn:not(.r-btn--hold)').forEach(btn => {
+        btn.addEventListener('click', () => sendAction(btn.dataset.action))
+      })
 
-  // Hold buttons
-  let holdInterval = null
+      let holdInterval = null
 
-  function startHold(action) {
-    sendAction(action)
-    holdInterval = setInterval(() => sendAction(action), 120)
-  }
+      function startHold(action) {
+        sendAction(action)
+        holdInterval = setInterval(() => sendAction(action), 120)
+      }
 
-  function stopHold() {
-    clearInterval(holdInterval)
-    holdInterval = null
-  }
+      function stopHold() {
+        clearInterval(holdInterval)
+        holdInterval = null
+      }
 
-  document.querySelectorAll('.r-btn--hold').forEach(btn => {
-    btn.addEventListener('pointerdown', () => {
-      btn.classList.add('is-holding')
-      startHold(btn.dataset.action)
-    })
-    btn.addEventListener('pointerup',   () => { btn.classList.remove('is-holding'); stopHold() })
-    btn.addEventListener('pointerleave',() => { btn.classList.remove('is-holding'); stopHold() })
+      document.querySelectorAll('.r-btn--hold').forEach(btn => {
+        btn.addEventListener('pointerdown', () => { btn.classList.add('is-holding'); startHold(btn.dataset.action) })
+        btn.addEventListener('pointerup',   () => { btn.classList.remove('is-holding'); stopHold() })
+        btn.addEventListener('pointerleave',() => { btn.classList.remove('is-holding'); stopHold() })
+      })
+    }
+    document.head.appendChild(script)
   })
 </script>
 

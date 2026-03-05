@@ -78,7 +78,7 @@
   })
 
   // ── Pusher listener ──
-  const pusher  = new Pusher(PUSHER_KEY, { cluster: PUSHER_CLUSTER })
+  const pusher  = new Pusher(PUSHER_KEY, { cluster: PUSHER_CLUSTER, forceTLS: true, enabledTransports: ['ws', 'wss'] })
   const channel = pusher.subscribe('portfolio-remote')
 
   const dot        = document.querySelector('.js-remote-dot')

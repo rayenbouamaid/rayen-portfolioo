@@ -18,16 +18,19 @@ export const POST: APIRoute = async ({ request }) => {
   const md5Body   = crypto.createHash('md5').update(body).digest('hex')
   const path      = `/apps/${appId}/events`
 
-  const toSign    = `POST\n${path}\nauth_key=${key}&auth_timestamp=${timestamp}&auth_version=1.0&body_md5=${md5Body}&channel=portfolio-remote&name=control`
-  const signature = crypto.createHmac('sha256', secret).update(toSign).digest('hex')
+  const queryParams = `auth_key=${key}&auth_timestamp=${timestamp}&auth_version=1.0&body_md5=${md5Body}`
+  const toSign      = `POST\n${path}\n${queryParams}`
+  const signature   = crypto.createHmac('sha256', secret).update(toSign).digest('hex')
 
-  const url = `https://api-${cluster}.pusher.com${path}?auth_key=${key}&auth_timestamp=${timestamp}&auth_version=1.0&body_md5=${md5Body}&channel=portfolio-remote&name=control&auth_signature=${signature}`
+  const url = `https://api-${cluster}.pusher.com${path}?${queryParams}&auth_signature=${signature}`
 
-  await fetch(url, {
+  const pusherRes  = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body,
   })
+
+  await pusherRes.text()
 
   return new Response(JSON.stringify({ ok: true }), { status: 200 })
 }
