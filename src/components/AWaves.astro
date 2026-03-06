@@ -1,9 +1,18 @@
 ---
 const { class: className } = Astro.props
+import rayenSrc from '../assets/rayen.jpg'
 ---
 
 <a-waves class:list={className} data-intersect>
   <canvas class="js-canvas"></canvas>
+  <div class="js-photo-wrap photo-wrap">
+    <div class="js-photo-card photo-card">
+      <img src={rayenSrc.src} alt="Rayen Bouamaid" class="photo-img" />
+      <div class="photo-glare js-glare"></div>
+      <canvas class="photo-glitch js-glitch"></canvas>
+      <div class="photo-border"></div>
+    </div>
+  </div>
 </a-waves>
 
 <script>
@@ -18,17 +27,45 @@ const { class: className } = Astro.props
     isInteractive: boolean
     isPaused: boolean
 
+    card: HTMLElement
+    glare: HTMLElement
+    glitchCanvas: HTMLCanvasElement
+    glitchCtx: CanvasRenderingContext2D
+    tiltX: number
+    tiltY: number
+    glitchIntensity: number
+    // 0 = idle, 1 = fully attracted — lerps smoothly
+    attractIntensity: number
+    isHoveringCard: boolean
+    cardRect: DOMRect | null
+
     readonly COUNT = 150
     readonly CONNECT_DIST = 140
     readonly MOUSE_DIST = 150
+    readonly MAX_TILT = 18
+    readonly CARD_CONNECT_DIST = 90
+    // Attraction pulls particles within this radius toward the card
+    readonly ATTRACT_RADIUS = 320
+    readonly ATTRACT_FORCE  = 0.012
 
     connectedCallback() {
-      this.canvas = this.querySelector('.js-canvas')
-      this.ctx    = this.canvas.getContext('2d')
-      this.mouse  = { x: -999, y: -999, active: false }
-      this.particles = []
-      this.isInteractive = false
-      this.isPaused = true
+      this.canvas       = this.querySelector('.js-canvas')
+      this.ctx          = this.canvas.getContext('2d')
+      this.card         = this.querySelector('.js-photo-card')
+      this.glare        = this.querySelector('.js-glare')
+      this.glitchCanvas = this.querySelector('.js-glitch')
+      this.glitchCtx    = this.glitchCanvas.getContext('2d')
+
+      this.mouse            = { x: -999, y: -999, active: false }
+      this.particles        = []
+      this.isInteractive    = false
+      this.isPaused         = true
+      this.tiltX            = 0
+      this.tiltY            = 0
+      this.glitchIntensity  = 0
+      this.attractIntensity = 0
+      this.isHoveringCard   = false
+      this.cardRect         = null
 
       this.setSize()
       this.spawnParticles()
@@ -37,35 +74,59 @@ const { class: className } = Astro.props
 
     bindEvents() {
       Emitter.on('resize', this.onResize, this)
-      this.addEventListener('mousemove', this.onMouseMove.bind(this))
-      this.addEventListener('touchmove', this.onTouchMove.bind(this))
+      this.addEventListener('mousemove',  this.onMouseMove.bind(this))
+      this.addEventListener('touchmove',  this.onTouchMove.bind(this))
       this.addEventListener('mouseleave', () => {
-        this.mouse.active = false
-        this.mouse.x = -999
-        this.mouse.y = -999
+        this.mouse.active   = false
+        this.mouse.x        = -999
+        this.mouse.y        = -999
+        this.isHoveringCard = false
       })
       this.addEventListener('intersect', this.onIntersect.bind(this), { passive: true })
-      this.addEventListener('introend', () => { this.isInteractive = true })
+      this.addEventListener('introend',  () => { this.isInteractive = true })
     }
 
     onResize() {
       this.setSize()
       this.spawnParticles()
+      this.cardRect = null
     }
 
     onMouseMove(e: MouseEvent) {
       if (!this.isInteractive) return
-      const rect = this.getBoundingClientRect()
+      const rect   = this.getBoundingClientRect()
       this.mouse.x = e.clientX - rect.left
       this.mouse.y = e.clientY - rect.top
       this.mouse.active = true
+
+      if (!this.cardRect) this.cardRect = this.card.getBoundingClientRect()
+      const cr = this.cardRect
+      this.isHoveringCard = (
+        e.clientX >= cr.left && e.clientX <= cr.right &&
+        e.clientY >= cr.top  && e.clientY <= cr.bottom
+      )
+
+      if (this.isHoveringCard) {
+        const cx = cr.left + cr.width  / 2
+        const cy = cr.top  + cr.height / 2
+        const nx = (e.clientX - cx) / (cr.width  / 2)
+        const ny = (e.clientY - cy) / (cr.height / 2)
+
+        const targetX = -ny * this.MAX_TILT
+        const targetY =  nx * this.MAX_TILT
+        this.tiltX += (targetX - this.tiltX) * 0.12
+        this.tiltY += (targetY - this.tiltY) * 0.12
+
+        this.glare.style.setProperty('--gx', `${(nx + 1) / 2 * 100}%`)
+        this.glare.style.setProperty('--gy', `${(ny + 1) / 2 * 100}%`)
+      }
     }
 
     onTouchMove(e: TouchEvent) {
       e.preventDefault()
       if (!this.isInteractive) return
-      const rect = this.getBoundingClientRect()
-      const t = e.touches[0]
+      const rect   = this.getBoundingClientRect()
+      const t      = e.touches[0]
       this.mouse.x = t.clientX - rect.left
       this.mouse.y = t.clientY - rect.top
       this.mouse.active = true
@@ -87,6 +148,12 @@ const { class: className } = Astro.props
       }
       this.canvas.width  = this.bounding.width
       this.canvas.height = this.bounding.height
+      this.cardRect = null
+
+      const cw = this.card?.offsetWidth  || 240
+      const ch = this.card?.offsetHeight || 256
+      this.glitchCanvas.width  = cw
+      this.glitchCanvas.height = ch
     }
 
     spawnParticles() {
@@ -103,9 +170,67 @@ const { class: className } = Astro.props
       }
     }
 
-    // Get the site's current secondary color (black or white depending on theme)
     getColor() {
       return getComputedStyle(this).getPropertyValue('--color-secondary').trim() || '#160000'
+    }
+
+    getCardBoundsCanvas(): { x: number; y: number; w: number; h: number; cx: number; cy: number } | null {
+      if (!this.cardRect) this.cardRect = this.card.getBoundingClientRect()
+      const cr      = this.cardRect
+      const wrapper = this.getBoundingClientRect()
+      const x = cr.left - wrapper.left
+      const y = cr.top  - wrapper.top
+      return { x, y, w: cr.width, h: cr.height, cx: x + cr.width / 2, cy: y + cr.height / 2 }
+    }
+
+    closestPointOnRect(
+      px: number, py: number,
+      rx: number, ry: number, rw: number, rh: number
+    ): { x: number; y: number; dist: number } {
+      const cx = Math.max(rx, Math.min(px, rx + rw))
+      const cy = Math.max(ry, Math.min(py, ry + rh))
+      if (px >= rx && px <= rx + rw && py >= ry && py <= ry + rh) {
+        const dl = px - rx, dr = (rx + rw) - px
+        const dt = py - ry, db = (ry + rh) - py
+        const min = Math.min(dl, dr, dt, db)
+        if (min === dl) return { x: rx,      y: py,      dist: 0 }
+        if (min === dr) return { x: rx + rw, y: py,      dist: 0 }
+        if (min === dt) return { x: px,      y: ry,      dist: 0 }
+        return                 { x: px,      y: ry + rh, dist: 0 }
+      }
+      return { x: cx, y: cy, dist: Math.hypot(px - cx, py - cy) }
+    }
+
+    drawGlitch(intensity: number) {
+      const ctx = this.glitchCtx
+      const w   = this.glitchCanvas.width
+      const h   = this.glitchCanvas.height
+      ctx.clearRect(0, 0, w, h)
+      if (intensity < 0.02) return
+
+      ctx.save()
+      ctx.globalAlpha = intensity * 0.05
+      ctx.strokeStyle = '#F40C3F'
+      ctx.lineWidth   = 1
+      for (let y = 0; y < h; y += 4) {
+        ctx.beginPath()
+        ctx.moveTo(0, y)
+        ctx.lineTo(w, y)
+        ctx.stroke()
+      }
+      ctx.restore()
+
+      const sliceCount = Math.floor(intensity * 3) + 1
+      for (let i = 0; i < sliceCount; i++) {
+        const sy     = Math.random() * h
+        const sh     = Math.random() * 8 + 2
+        const offset = (Math.random() - 0.5) * intensity * 12
+        ctx.save()
+        ctx.globalAlpha = Math.random() * intensity * 0.35
+        ctx.fillStyle   = `rgba(244,12,63,1)`
+        ctx.fillRect(offset, sy, w, sh)
+        ctx.restore()
+      }
     }
 
     tick() {
@@ -116,6 +241,12 @@ const { class: className } = Astro.props
 
       ctx.clearRect(0, 0, width, height)
 
+      const cb = this.getCardBoundsCanvas()
+
+      // Lerp attract intensity toward hover state
+      const targetAttract   = this.isHoveringCard ? 1 : 0
+      this.attractIntensity += (targetAttract - this.attractIntensity) * 0.04
+
       // Move particles
       particles.forEach(p => {
         p.x += p.vx
@@ -123,6 +254,7 @@ const { class: className } = Astro.props
         if (p.x < 0 || p.x > width)  p.vx *= -1
         if (p.y < 0 || p.y > height) p.vy *= -1
 
+        // Mouse repulsion (unchanged)
         if (mouse.active) {
           const dx   = p.x - mouse.x
           const dy   = p.y - mouse.y
@@ -134,11 +266,36 @@ const { class: className } = Astro.props
           }
         }
 
-        const speed = Math.hypot(p.vx, p.vy)
-        if (speed > 1.5) { p.vx *= 0.95; p.vy *= 0.95 }
+        // Card attraction — pull toward nearest edge point when hovering
+        if (cb && this.attractIntensity > 0.01) {
+          const { x: ex, y: ey, dist } = this.closestPointOnRect(p.x, p.y, cb.x, cb.y, cb.w, cb.h)
+
+          if (dist < this.ATTRACT_RADIUS && dist > 2) {
+            // Strength fades with distance, scaled by attractIntensity
+            const falloff = (1 - dist / this.ATTRACT_RADIUS)
+            const force   = falloff * falloff * this.ATTRACT_FORCE * this.attractIntensity
+
+            const dx = ex - p.x
+            const dy = ey - p.y
+            const d  = Math.hypot(dx, dy)
+            p.vx += (dx / d) * force
+            p.vy += (dy / d) * force
+          }
+
+          // Speed cap — slightly higher when attracted so they swarm in fast
+          const maxSpeed = 1.5 + this.attractIntensity * 1.2
+          const speed    = Math.hypot(p.vx, p.vy)
+          if (speed > maxSpeed) {
+            p.vx *= maxSpeed / speed
+            p.vy *= maxSpeed / speed
+          }
+        } else {
+          const speed = Math.hypot(p.vx, p.vy)
+          if (speed > 1.5) { p.vx *= 0.95; p.vy *= 0.95 }
+        }
       })
 
-      // Draw connections between particles
+      // Particle–particle connections
       for (let i = 0; i < particles.length; i++) {
         for (let j = i + 1; j < particles.length; j++) {
           const dx   = particles[i].x - particles[j].x
@@ -146,18 +303,15 @@ const { class: className } = Astro.props
           const dist = Math.hypot(dx, dy)
 
           if (dist < this.CONNECT_DIST) {
-            const alpha    = (1 - dist / this.CONNECT_DIST) * 0.4
-            const mx       = (particles[i].x + particles[j].x) / 2
-            const my       = (particles[i].y + particles[j].y) / 2
-            const mdist    = mouse.active ? Math.hypot(mx - mouse.x, my - mouse.y) : 999
+            const alpha      = (1 - dist / this.CONNECT_DIST) * 0.4
+            const mx         = (particles[i].x + particles[j].x) / 2
+            const my         = (particles[i].y + particles[j].y) / 2
+            const mdist      = mouse.active ? Math.hypot(mx - mouse.x, my - mouse.y) : 999
             const mInfluence = Math.max(0, 1 - mdist / 200)
 
-            if (mInfluence > 0.1) {
-              ctx.strokeStyle = `rgba(244,12,63,${alpha + mInfluence * 0.5})`
-            } else {
-              // Parse base color into rgba
-              ctx.strokeStyle = this.colorWithAlpha(baseColor, alpha)
-            }
+            ctx.strokeStyle = mInfluence > 0.1
+              ? `rgba(244,12,63,${alpha + mInfluence * 0.5})`
+              : this.colorWithAlpha(baseColor, alpha)
             ctx.lineWidth = 0.5
             ctx.beginPath()
             ctx.moveTo(particles[i].x, particles[i].y)
@@ -167,7 +321,30 @@ const { class: className } = Astro.props
         }
       }
 
-      // Draw mouse connections
+      // Particle → card edge connections
+      if (cb) {
+        particles.forEach(p => {
+          const { x: ex, y: ey, dist } = this.closestPointOnRect(p.x, p.y, cb.x, cb.y, cb.w, cb.h)
+          if (dist < this.CARD_CONNECT_DIST && dist > 0) {
+            const t     = 1 - dist / this.CARD_CONNECT_DIST
+            const alpha = t * (0.55 + this.attractIntensity * 0.3)
+
+            const grad = ctx.createLinearGradient(p.x, p.y, ex, ey)
+            grad.addColorStop(0,   this.colorWithAlpha(baseColor, alpha * 0.4))
+            grad.addColorStop(0.6, `rgba(244,12,63,${alpha * 0.7})`)
+            grad.addColorStop(1,   `rgba(244,12,63,${alpha})`)
+
+            ctx.strokeStyle = grad
+            ctx.lineWidth   = 0.5 + t * (0.8 + this.attractIntensity * 0.6)
+            ctx.beginPath()
+            ctx.moveTo(p.x, p.y)
+            ctx.lineTo(ex, ey)
+            ctx.stroke()
+          }
+        })
+      }
+
+      // Mouse connections
       if (mouse.active && mouse.x !== -999) {
         particles.forEach(p => {
           const dist = Math.hypot(p.x - mouse.x, p.y - mouse.y)
@@ -181,8 +358,6 @@ const { class: className } = Astro.props
             ctx.stroke()
           }
         })
-
-        // Mouse dot
         ctx.fillStyle   = accentColor
         ctx.globalAlpha = 0.9
         ctx.beginPath()
@@ -195,17 +370,38 @@ const { class: className } = Astro.props
       particles.forEach(p => {
         const dist = mouse.active ? Math.hypot(p.x - mouse.x, p.y - mouse.y) : 999
         const near = Math.max(0, 1 - dist / this.MOUSE_DIST)
-        ctx.fillStyle   = near > 0.3 ? accentColor : baseColor
-        ctx.globalAlpha = 0.5 + near * 0.5
+
+        let cardNear = 0
+        if (cb) {
+          const { dist: cd } = this.closestPointOnRect(p.x, p.y, cb.x, cb.y, cb.w, cb.h)
+          cardNear = Math.max(0, 1 - cd / this.CARD_CONNECT_DIST)
+        }
+
+        const glow = Math.max(near, cardNear * 0.6)
+        ctx.fillStyle   = (near > 0.3 || cardNear > 0.5) ? accentColor : baseColor
+        ctx.globalAlpha = 0.5 + glow * 0.5
         ctx.beginPath()
-        ctx.arc(p.x, p.y, p.r + near * 2, 0, Math.PI * 2)
+        ctx.arc(p.x, p.y, p.r + glow * 2, 0, Math.PI * 2)
         ctx.fill()
       })
-
       ctx.globalAlpha = 1
+
+      // Card tilt + glitch
+      const targetIntensity = this.isHoveringCard ? 1 : 0
+      this.glitchIntensity += (targetIntensity - this.glitchIntensity) * 0.07
+
+      if (!this.isHoveringCard) {
+        this.tiltX += (0 - this.tiltX) * 0.08
+        this.tiltY += (0 - this.tiltY) * 0.08
+      }
+
+      const scale = 1 + this.glitchIntensity * 0.04
+      this.card.style.transform = `perspective(800px) rotateX(${this.tiltX}deg) rotateY(${this.tiltY}deg) scale(${scale})`
+      this.glare.style.opacity  = String(this.glitchIntensity * 0.4)
+
+      this.drawGlitch(this.glitchIntensity)
     }
 
-    // Helper — convert hex to rgba string
     colorWithAlpha(hex: string, alpha: number): string {
       hex = hex.replace('#', '').trim()
       if (hex.length === 3) hex = hex.split('').map(c => c+c).join('')
@@ -229,12 +425,133 @@ const { class: className } = Astro.props
     padding: 0;
     overflow: hidden;
 
-    canvas {
+    canvas.js-canvas {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
     }
+  }
+
+  .photo-wrap {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .photo-card {
+    position: relative;
+    width: 240px;
+    aspect-ratio: 2336 / 2490;
+    border-radius: 14px;
+    overflow: hidden;
+    pointer-events: all;
+    will-change: transform;
+    transform: perspective(800px) rotateX(0deg) rotateY(0deg) scale(1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+    transition: box-shadow 0.3s ease;
+
+    &:hover {
+      box-shadow:
+        0 16px 48px rgba(244, 12, 63, 0.2),
+        0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    @include mq(phone) {
+      width: 170px;
+    }
+  }
+
+  .photo-img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+    border-radius: 14px;
+    user-select: none;
+    pointer-events: none;
+  }
+
+  .photo-border {
+    position: absolute;
+    inset: -2px;
+    border-radius: 16px;
+    z-index: 3;
+    pointer-events: none;
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: 17px;
+      padding: 1.5px;
+      background: conic-gradient(
+        from var(--angle, 0deg),
+        transparent   0deg,
+        #F40C3F      60deg,
+        #ff6b8a     120deg,
+        transparent 180deg,
+        transparent 360deg
+      );
+      -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      animation: border-spin 3s linear infinite;
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 16px;
+      border: 1px solid rgba(244, 12, 63, 0.12);
+    }
+  }
+
+  @property --angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+  }
+
+  @keyframes border-spin {
+    to { --angle: 360deg; }
+  }
+
+  .photo-glare {
+    --gx: 50%;
+    --gy: 50%;
+    position: absolute;
+    inset: 0;
+    border-radius: 14px;
+    z-index: 2;
+    opacity: 0;
+    pointer-events: none;
+    background: radial-gradient(
+      circle at var(--gx) var(--gy),
+      rgba(255, 255, 255, 0.3) 0%,
+      rgba(255, 255, 255, 0.06) 40%,
+      transparent 70%
+    );
+    mix-blend-mode: overlay;
+  }
+
+  .photo-glitch {
+    position: absolute;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 14px;
+    z-index: 4;
+    pointer-events: none;
+    mix-blend-mode: overlay;
   }
 </style>
