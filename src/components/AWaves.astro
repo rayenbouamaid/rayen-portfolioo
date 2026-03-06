@@ -1,16 +1,63 @@
 ---
 const { class: className } = Astro.props
-import rayenSrc from '../assets/rayen.jpg'
+import rayenSrc   from '../assets/rayen.jpg'
+import rayenv2Src from '../assets/rayenv2.png'
 ---
 
 <a-waves class:list={className} data-intersect>
   <canvas class="js-canvas"></canvas>
-  <div class="js-photo-wrap photo-wrap">
-    <div class="js-photo-card photo-card">
-      <img src={rayenSrc.src} alt="Rayen Bouamaid" class="photo-img" />
-      <div class="photo-glare js-glare"></div>
-      <canvas class="photo-glitch js-glitch"></canvas>
+
+  <div class="photo-wrap">
+    <!-- Card is independently centered -->
+    <div class="js-photo-card-wrap photo-card-wrap">
+
+      <div class="photo-card">
+        <img src={rayenSrc.src}   alt="Rayen Bouamaid" class="photo-img photo-img--real" />
+        <img src={rayenv2Src.src} alt=""               class="photo-img photo-img--v2 js-photo-v2" />
+        <!-- Dissolve canvas — pixel noise drawn here -->
+        <canvas class="photo-dissolve js-dissolve"></canvas>
+        <div class="photo-glare js-glare"></div>
+      </div>
+
       <div class="photo-border"></div>
+
+      <!-- Terminal — absolutely positioned, doesn't affect card centering -->
+      <div class="photo-terminal js-terminal">
+        <div class="terminal__header">
+          <span class="terminal__dot terminal__dot--dark"></span>
+          <span class="terminal__dot terminal__dot--dark"></span>
+          <span class="terminal__dot terminal__dot--red"></span>
+          <span class="terminal__title">ID_CARD.exe</span>
+        </div>
+        <div class="terminal__body">
+          <div class="terminal__line">
+            <span class="terminal__prompt">$</span>
+            <span class="terminal__key">NAME</span>
+            <span class="terminal__sep">::</span>
+            <span class="terminal__val js-type-name"></span><span class="terminal__cursor">▮</span>
+          </div>
+          <div class="terminal__line">
+            <span class="terminal__prompt">$</span>
+            <span class="terminal__key">AGE</span>
+            <span class="terminal__sep">::</span>
+            <span class="terminal__val">22</span>
+          </div>
+          <div class="terminal__line terminal__line--status">
+            <span class="terminal__prompt">$</span>
+            <span class="terminal__key">STATUS</span>
+            <span class="terminal__sep">::</span>
+            <span class="terminal__val terminal__val--accent">
+              <span class="terminal__blink"></span>OPEN_TO_WORK
+            </span>
+          </div>
+          <div class="terminal__line terminal__line--dim">
+            <span class="terminal__prompt">#</span>
+            <span class="terminal__comment">// rayen-portfolio.dev</span>
+          </div>
+        </div>
+        <div class="terminal__scanlines"></div>
+      </div>
+
     </div>
   </div>
 </a-waves>
@@ -27,34 +74,48 @@ import rayenSrc from '../assets/rayen.jpg'
     isInteractive: boolean
     isPaused: boolean
 
+    wrap: HTMLElement
     card: HTMLElement
     glare: HTMLElement
-    glitchCanvas: HTMLCanvasElement
-    glitchCtx: CanvasRenderingContext2D
+    dissolveCanvas: HTMLCanvasElement
+    dissolveCtx: CanvasRenderingContext2D
+    photoV2: HTMLElement
+    typeName: HTMLElement
+
     tiltX: number
     tiltY: number
     glitchIntensity: number
-    // 0 = idle, 1 = fully attracted — lerps smoothly
     attractIntensity: number
     isHoveringCard: boolean
     cardRect: DOMRect | null
+    typewriterDone: boolean
+    revealProgress: number
+
+    // Pixel dissolve — pre-shuffled pixel order
+    dissolvePixels: number[]
+    dissolveW: number
+    dissolveH: number
+    readonly PIXEL_SIZE = 6  // size of each dissolve block
 
     readonly COUNT = 150
     readonly CONNECT_DIST = 140
     readonly MOUSE_DIST = 150
     readonly MAX_TILT = 18
     readonly CARD_CONNECT_DIST = 90
-    // Attraction pulls particles within this radius toward the card
     readonly ATTRACT_RADIUS = 320
-    readonly ATTRACT_FORCE  = 0.012
+    readonly ATTRACT_FORCE = 0.012
+    readonly FULL_NAME = 'RAYEN_BOUAMAID'
 
     connectedCallback() {
-      this.canvas       = this.querySelector('.js-canvas')
-      this.ctx          = this.canvas.getContext('2d')
-      this.card         = this.querySelector('.js-photo-card')
-      this.glare        = this.querySelector('.js-glare')
-      this.glitchCanvas = this.querySelector('.js-glitch')
-      this.glitchCtx    = this.glitchCanvas.getContext('2d')
+      this.canvas        = this.querySelector('.js-canvas')
+      this.ctx           = this.canvas.getContext('2d')
+      this.wrap          = this.querySelector('.js-photo-card-wrap')
+      this.card          = this.querySelector('.photo-card')
+      this.glare         = this.querySelector('.js-glare')
+      this.dissolveCanvas = this.querySelector('.js-dissolve')
+      this.dissolveCtx   = this.dissolveCanvas.getContext('2d')
+      this.photoV2       = this.querySelector('.js-photo-v2')
+      this.typeName      = this.querySelector('.js-type-name')
 
       this.mouse            = { x: -999, y: -999, active: false }
       this.particles        = []
@@ -66,10 +127,32 @@ import rayenSrc from '../assets/rayen.jpg'
       this.attractIntensity = 0
       this.isHoveringCard   = false
       this.cardRect         = null
+      this.typewriterDone   = false
+      this.revealProgress   = 0
+      this.dissolvePixels   = []
+      this.dissolveW        = 0
+      this.dissolveH        = 0
 
       this.setSize()
       this.spawnParticles()
+      this.buildDissolveMap()
       this.bindEvents()
+    }
+
+    buildDissolveMap() {
+      const pw = this.PIXEL_SIZE
+      const cw = this.card.offsetWidth  || 240
+      const ch = this.card.offsetHeight || 256
+      this.dissolveW = Math.ceil(cw / pw)
+      this.dissolveH = Math.ceil(ch / pw)
+      const total = this.dissolveW * this.dissolveH
+      // Fisher-Yates shuffle of pixel indices
+      const arr = Array.from({ length: total }, (_, i) => i)
+      for (let i = total - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[arr[i], arr[j]] = [arr[j], arr[i]]
+      }
+      this.dissolvePixels = arr
     }
 
     bindEvents() {
@@ -89,6 +172,7 @@ import rayenSrc from '../assets/rayen.jpg'
     onResize() {
       this.setSize()
       this.spawnParticles()
+      this.buildDissolveMap()
       this.cardRect = null
     }
 
@@ -99,7 +183,7 @@ import rayenSrc from '../assets/rayen.jpg'
       this.mouse.y = e.clientY - rect.top
       this.mouse.active = true
 
-      if (!this.cardRect) this.cardRect = this.card.getBoundingClientRect()
+      if (!this.cardRect) this.cardRect = this.wrap.getBoundingClientRect()
       const cr = this.cardRect
       this.isHoveringCard = (
         e.clientX >= cr.left && e.clientX <= cr.right &&
@@ -107,16 +191,13 @@ import rayenSrc from '../assets/rayen.jpg'
       )
 
       if (this.isHoveringCard) {
-        const cx = cr.left + cr.width  / 2
-        const cy = cr.top  + cr.height / 2
-        const nx = (e.clientX - cx) / (cr.width  / 2)
-        const ny = (e.clientY - cy) / (cr.height / 2)
-
-        const targetX = -ny * this.MAX_TILT
-        const targetY =  nx * this.MAX_TILT
-        this.tiltX += (targetX - this.tiltX) * 0.12
-        this.tiltY += (targetY - this.tiltY) * 0.12
-
+        const cardRect = this.card.getBoundingClientRect()
+        const cx = cardRect.left + cardRect.width  / 2
+        const cy = cardRect.top  + cardRect.height / 2
+        const nx = (e.clientX - cx) / (cardRect.width  / 2)
+        const ny = (e.clientY - cy) / (cardRect.height / 2)
+        this.tiltX += (-ny * this.MAX_TILT - this.tiltX) * 0.12
+        this.tiltY += ( nx * this.MAX_TILT - this.tiltY) * 0.12
         this.glare.style.setProperty('--gx', `${(nx + 1) / 2 * 100}%`)
         this.glare.style.setProperty('--gy', `${(ny + 1) / 2 * 100}%`)
       }
@@ -125,8 +206,8 @@ import rayenSrc from '../assets/rayen.jpg'
     onTouchMove(e: TouchEvent) {
       e.preventDefault()
       if (!this.isInteractive) return
-      const rect   = this.getBoundingClientRect()
-      const t      = e.touches[0]
+      const rect = this.getBoundingClientRect()
+      const t    = e.touches[0]
       this.mouse.x = t.clientX - rect.left
       this.mouse.y = t.clientY - rect.top
       this.mouse.active = true
@@ -142,18 +223,16 @@ import rayenSrc from '../assets/rayen.jpg'
     }
 
     setSize() {
-      this.bounding = {
-        width:  this.clientWidth,
-        height: this.clientHeight,
-      }
+      this.bounding = { width: this.clientWidth, height: this.clientHeight }
       this.canvas.width  = this.bounding.width
       this.canvas.height = this.bounding.height
       this.cardRect = null
 
+      // Size dissolve canvas to match card exactly
       const cw = this.card?.offsetWidth  || 240
       const ch = this.card?.offsetHeight || 256
-      this.glitchCanvas.width  = cw
-      this.glitchCanvas.height = ch
+      this.dissolveCanvas.width  = cw
+      this.dissolveCanvas.height = ch
     }
 
     spawnParticles() {
@@ -174,24 +253,18 @@ import rayenSrc from '../assets/rayen.jpg'
       return getComputedStyle(this).getPropertyValue('--color-secondary').trim() || '#160000'
     }
 
-    getCardBoundsCanvas(): { x: number; y: number; w: number; h: number; cx: number; cy: number } | null {
-      if (!this.cardRect) this.cardRect = this.card.getBoundingClientRect()
-      const cr      = this.cardRect
-      const wrapper = this.getBoundingClientRect()
-      const x = cr.left - wrapper.left
-      const y = cr.top  - wrapper.top
-      return { x, y, w: cr.width, h: cr.height, cx: x + cr.width / 2, cy: y + cr.height / 2 }
+    getCardBoundsCanvas() {
+      if (!this.cardRect) this.cardRect = this.wrap.getBoundingClientRect()
+      const cr = this.cardRect, wrapper = this.getBoundingClientRect()
+      const x = cr.left - wrapper.left, y = cr.top - wrapper.top
+      return { x, y, w: cr.width, h: cr.height }
     }
 
-    closestPointOnRect(
-      px: number, py: number,
-      rx: number, ry: number, rw: number, rh: number
-    ): { x: number; y: number; dist: number } {
+    closestPointOnRect(px: number, py: number, rx: number, ry: number, rw: number, rh: number) {
       const cx = Math.max(rx, Math.min(px, rx + rw))
       const cy = Math.max(ry, Math.min(py, ry + rh))
       if (px >= rx && px <= rx + rw && py >= ry && py <= ry + rh) {
-        const dl = px - rx, dr = (rx + rw) - px
-        const dt = py - ry, db = (ry + rh) - py
+        const dl = px - rx, dr = (rx + rw) - px, dt = py - ry, db = (ry + rh) - py
         const min = Math.min(dl, dr, dt, db)
         if (min === dl) return { x: rx,      y: py,      dist: 0 }
         if (min === dr) return { x: rx + rw, y: py,      dist: 0 }
@@ -201,36 +274,68 @@ import rayenSrc from '../assets/rayen.jpg'
       return { x: cx, y: cy, dist: Math.hypot(px - cx, py - cy) }
     }
 
-    drawGlitch(intensity: number) {
-      const ctx = this.glitchCtx
-      const w   = this.glitchCanvas.width
-      const h   = this.glitchCanvas.height
-      ctx.clearRect(0, 0, w, h)
-      if (intensity < 0.02) return
+    runTypewriter() {
+      if (this.typewriterDone) return
+      this.typewriterDone = true
+      this.typeName.textContent = ''
+      let i = 0
+      const interval = setInterval(() => {
+        this.typeName.textContent += this.FULL_NAME[i++]
+        if (i >= this.FULL_NAME.length) clearInterval(interval)
+      }, 55)
+    }
 
-      ctx.save()
-      ctx.globalAlpha = intensity * 0.05
-      ctx.strokeStyle = '#F40C3F'
-      ctx.lineWidth   = 1
-      for (let y = 0; y < h; y += 4) {
-        ctx.beginPath()
-        ctx.moveTo(0, y)
-        ctx.lineTo(w, y)
-        ctx.stroke()
-      }
-      ctx.restore()
+    resetTypewriter() {
+      this.typewriterDone = false
+      this.typeName.textContent = ''
+    }
 
-      const sliceCount = Math.floor(intensity * 3) + 1
-      for (let i = 0; i < sliceCount; i++) {
-        const sy     = Math.random() * h
-        const sh     = Math.random() * 8 + 2
-        const offset = (Math.random() - 0.5) * intensity * 12
-        ctx.save()
-        ctx.globalAlpha = Math.random() * intensity * 0.35
-        ctx.fillStyle   = `rgba(244,12,63,1)`
-        ctx.fillRect(offset, sy, w, sh)
-        ctx.restore()
+    // ── Pixel dissolve ────────────────────────────────────────────
+    // progress 0 = v2 fully visible (all pixels filled)
+    // progress 1 = v2 fully dissolved (no pixels, real photo shows)
+    drawDissolve(progress: number) {
+      const ctx  = this.dissolveCtx
+      const cw   = this.dissolveCanvas.width
+      const ch   = this.dissolveCanvas.height
+      const pw   = this.PIXEL_SIZE
+      const total = this.dissolvePixels.length
+
+      ctx.clearRect(0, 0, cw, ch)
+
+      if (progress <= 0) {
+        // Fully covered — fill all blocks with a neutral mask
+        ctx.fillStyle = 'rgba(0,0,0,0)'
+        return
       }
+      if (progress >= 1) return
+
+      // How many pixels remain opaque (covering v2) — dissolves from full → 0
+      const remaining = Math.floor((1 - progress) * total)
+
+      // Draw remaining opaque blocks — these mask the real photo underneath
+      // by keeping v2 visible. We achieve this by drawing transparent on cleared canvas
+      // and relying on v2 opacity. Instead: draw black blocks on dissolveCanvas
+      // over the sections that have NOT dissolved yet, using source-over on top of v2.
+      ctx.fillStyle = '#0a0000'
+      for (let i = 0; i < remaining; i++) {
+        const idx = this.dissolvePixels[i]
+        const gx  = (idx % this.dissolveW) * pw
+        const gy  = Math.floor(idx / this.dissolveW) * pw
+        ctx.fillRect(gx, gy, pw, pw)
+      }
+
+      // Edge pixels get a red tint for a brief flash as they dissolve
+      const edgeStart = remaining
+      const edgeEnd   = Math.min(total, remaining + Math.floor(total * 0.05))
+      ctx.fillStyle = '#F40C3F'
+      for (let i = edgeStart; i < edgeEnd; i++) {
+        const idx = this.dissolvePixels[i]
+        const gx  = (idx % this.dissolveW) * pw
+        const gy  = Math.floor(idx / this.dissolveW) * pw
+        ctx.globalAlpha = 0.7
+        ctx.fillRect(gx, gy, pw, pw)
+      }
+      ctx.globalAlpha = 1
     }
 
     tick() {
@@ -240,24 +345,26 @@ import rayenSrc from '../assets/rayen.jpg'
       const accentColor = '#F40C3F'
 
       ctx.clearRect(0, 0, width, height)
-
       const cb = this.getCardBoundsCanvas()
 
-      // Lerp attract intensity toward hover state
-      const targetAttract   = this.isHoveringCard ? 1 : 0
-      this.attractIntensity += (targetAttract - this.attractIntensity) * 0.04
+      // Lerp attract + reveal
+      const target = this.isHoveringCard ? 1 : 0
+      this.attractIntensity += (target - this.attractIntensity) * 0.04
+      this.revealProgress   += (target - this.revealProgress)   * 0.032
 
-      // Move particles
+      // Sync v2 — fully opaque until dissolve starts, then JS handles via dissolveCanvas
+      // v2 stays at opacity 1; dissolveCanvas masks it. When fully revealed, hide v2.
+      ;(this.photoV2 as HTMLElement).style.opacity = this.revealProgress >= 0.99 ? '0' : '1'
+      this.drawDissolve(this.revealProgress)
+
+      // Particles
       particles.forEach(p => {
-        p.x += p.vx
-        p.y += p.vy
+        p.x += p.vx; p.y += p.vy
         if (p.x < 0 || p.x > width)  p.vx *= -1
         if (p.y < 0 || p.y > height) p.vy *= -1
 
-        // Mouse repulsion (unchanged)
         if (mouse.active) {
-          const dx   = p.x - mouse.x
-          const dy   = p.y - mouse.y
+          const dx = p.x - mouse.x, dy = p.y - mouse.y
           const dist = Math.hypot(dx, dy)
           if (dist < this.MOUSE_DIST && dist > 0) {
             const force = (this.MOUSE_DIST - dist) / this.MOUSE_DIST
@@ -266,29 +373,17 @@ import rayenSrc from '../assets/rayen.jpg'
           }
         }
 
-        // Card attraction — pull toward nearest edge point when hovering
         if (cb && this.attractIntensity > 0.01) {
           const { x: ex, y: ey, dist } = this.closestPointOnRect(p.x, p.y, cb.x, cb.y, cb.w, cb.h)
-
           if (dist < this.ATTRACT_RADIUS && dist > 2) {
-            // Strength fades with distance, scaled by attractIntensity
-            const falloff = (1 - dist / this.ATTRACT_RADIUS)
+            const falloff = 1 - dist / this.ATTRACT_RADIUS
             const force   = falloff * falloff * this.ATTRACT_FORCE * this.attractIntensity
-
-            const dx = ex - p.x
-            const dy = ey - p.y
-            const d  = Math.hypot(dx, dy)
-            p.vx += (dx / d) * force
-            p.vy += (dy / d) * force
+            const dx = ex - p.x, dy = ey - p.y, d = Math.hypot(dx, dy)
+            p.vx += (dx / d) * force; p.vy += (dy / d) * force
           }
-
-          // Speed cap — slightly higher when attracted so they swarm in fast
           const maxSpeed = 1.5 + this.attractIntensity * 1.2
-          const speed    = Math.hypot(p.vx, p.vy)
-          if (speed > maxSpeed) {
-            p.vx *= maxSpeed / speed
-            p.vy *= maxSpeed / speed
-          }
+          const speed = Math.hypot(p.vx, p.vy)
+          if (speed > maxSpeed) { p.vx *= maxSpeed / speed; p.vy *= maxSpeed / speed }
         } else {
           const speed = Math.hypot(p.vx, p.vy)
           if (speed > 1.5) { p.vx *= 0.95; p.vy *= 0.95 }
@@ -298,17 +393,15 @@ import rayenSrc from '../assets/rayen.jpg'
       // Particle–particle connections
       for (let i = 0; i < particles.length; i++) {
         for (let j = i + 1; j < particles.length; j++) {
-          const dx   = particles[i].x - particles[j].x
-          const dy   = particles[i].y - particles[j].y
+          const dx = particles[i].x - particles[j].x
+          const dy = particles[i].y - particles[j].y
           const dist = Math.hypot(dx, dy)
-
           if (dist < this.CONNECT_DIST) {
-            const alpha      = (1 - dist / this.CONNECT_DIST) * 0.4
-            const mx         = (particles[i].x + particles[j].x) / 2
-            const my         = (particles[i].y + particles[j].y) / 2
-            const mdist      = mouse.active ? Math.hypot(mx - mouse.x, my - mouse.y) : 999
+            const alpha = (1 - dist / this.CONNECT_DIST) * 0.4
+            const mx = (particles[i].x + particles[j].x) / 2
+            const my = (particles[i].y + particles[j].y) / 2
+            const mdist = mouse.active ? Math.hypot(mx - mouse.x, my - mouse.y) : 999
             const mInfluence = Math.max(0, 1 - mdist / 200)
-
             ctx.strokeStyle = mInfluence > 0.1
               ? `rgba(244,12,63,${alpha + mInfluence * 0.5})`
               : this.colorWithAlpha(baseColor, alpha)
@@ -321,85 +414,73 @@ import rayenSrc from '../assets/rayen.jpg'
         }
       }
 
-      // Particle → card edge connections
       if (cb) {
         particles.forEach(p => {
           const { x: ex, y: ey, dist } = this.closestPointOnRect(p.x, p.y, cb.x, cb.y, cb.w, cb.h)
           if (dist < this.CARD_CONNECT_DIST && dist > 0) {
-            const t     = 1 - dist / this.CARD_CONNECT_DIST
+            const t = 1 - dist / this.CARD_CONNECT_DIST
             const alpha = t * (0.55 + this.attractIntensity * 0.3)
-
             const grad = ctx.createLinearGradient(p.x, p.y, ex, ey)
             grad.addColorStop(0,   this.colorWithAlpha(baseColor, alpha * 0.4))
             grad.addColorStop(0.6, `rgba(244,12,63,${alpha * 0.7})`)
             grad.addColorStop(1,   `rgba(244,12,63,${alpha})`)
-
             ctx.strokeStyle = grad
             ctx.lineWidth   = 0.5 + t * (0.8 + this.attractIntensity * 0.6)
-            ctx.beginPath()
-            ctx.moveTo(p.x, p.y)
-            ctx.lineTo(ex, ey)
-            ctx.stroke()
+            ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(ex, ey); ctx.stroke()
           }
         })
       }
 
-      // Mouse connections
       if (mouse.active && mouse.x !== -999) {
         particles.forEach(p => {
           const dist = Math.hypot(p.x - mouse.x, p.y - mouse.y)
           if (dist < this.MOUSE_DIST) {
             const alpha = (1 - dist / this.MOUSE_DIST) * 0.8
             ctx.strokeStyle = `rgba(244,12,63,${alpha})`
-            ctx.lineWidth   = 1
-            ctx.beginPath()
-            ctx.moveTo(mouse.x, mouse.y)
-            ctx.lineTo(p.x, p.y)
-            ctx.stroke()
+            ctx.lineWidth = 1
+            ctx.beginPath(); ctx.moveTo(mouse.x, mouse.y); ctx.lineTo(p.x, p.y); ctx.stroke()
           }
         })
-        ctx.fillStyle   = accentColor
-        ctx.globalAlpha = 0.9
-        ctx.beginPath()
-        ctx.arc(mouse.x, mouse.y, 3, 0, Math.PI * 2)
-        ctx.fill()
+        ctx.fillStyle = accentColor; ctx.globalAlpha = 0.9
+        ctx.beginPath(); ctx.arc(mouse.x, mouse.y, 3, 0, Math.PI * 2); ctx.fill()
         ctx.globalAlpha = 1
       }
 
-      // Draw particles
       particles.forEach(p => {
         const dist = mouse.active ? Math.hypot(p.x - mouse.x, p.y - mouse.y) : 999
         const near = Math.max(0, 1 - dist / this.MOUSE_DIST)
-
         let cardNear = 0
         if (cb) {
           const { dist: cd } = this.closestPointOnRect(p.x, p.y, cb.x, cb.y, cb.w, cb.h)
           cardNear = Math.max(0, 1 - cd / this.CARD_CONNECT_DIST)
         }
-
         const glow = Math.max(near, cardNear * 0.6)
         ctx.fillStyle   = (near > 0.3 || cardNear > 0.5) ? accentColor : baseColor
         ctx.globalAlpha = 0.5 + glow * 0.5
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, p.r + glow * 2, 0, Math.PI * 2)
-        ctx.fill()
+        ctx.beginPath(); ctx.arc(p.x, p.y, p.r + glow * 2, 0, Math.PI * 2); ctx.fill()
       })
       ctx.globalAlpha = 1
 
-      // Card tilt + glitch
+      // Tilt
       const targetIntensity = this.isHoveringCard ? 1 : 0
       this.glitchIntensity += (targetIntensity - this.glitchIntensity) * 0.07
-
       if (!this.isHoveringCard) {
         this.tiltX += (0 - this.tiltX) * 0.08
         this.tiltY += (0 - this.tiltY) * 0.08
       }
-
       const scale = 1 + this.glitchIntensity * 0.04
-      this.card.style.transform = `perspective(800px) rotateX(${this.tiltX}deg) rotateY(${this.tiltY}deg) scale(${scale})`
+      this.wrap.style.transform = `perspective(900px) rotateX(${this.tiltX}deg) rotateY(${this.tiltY}deg) scale(${scale})`
       this.glare.style.opacity  = String(this.glitchIntensity * 0.4)
 
-      this.drawGlitch(this.glitchIntensity)
+      const wasHovered = this.wrap.classList.contains('is-hovered')
+      const nowHovered = this.glitchIntensity > 0.05
+      if (nowHovered && !wasHovered) {
+        this.wrap.classList.add('is-hovered')
+        this.runTypewriter()
+      } else if (!nowHovered && wasHovered) {
+        this.wrap.classList.remove('is-hovered')
+        this.resetTypewriter()
+      }
     }
 
     colorWithAlpha(hex: string, alpha: number): string {
@@ -434,6 +515,7 @@ import rayenSrc from '../assets/rayen.jpg'
     }
   }
 
+  // Center wrapper — card is the anchor, terminal floats out
   .photo-wrap {
     position: absolute;
     inset: 0;
@@ -444,21 +526,29 @@ import rayenSrc from '../assets/rayen.jpg'
     z-index: 2;
   }
 
+  // Transform root — position: relative so terminal can absolute off it
+  .photo-card-wrap {
+    position: relative;
+    will-change: transform;
+    transform: perspective(900px) rotateX(0deg) rotateY(0deg) scale(1);
+    transform-style: preserve-3d;
+    pointer-events: all;
+  }
+
+  // ── Card ──────────────────────────────────────────────────────
+
   .photo-card {
     position: relative;
     width: 240px;
     aspect-ratio: 2336 / 2490;
     border-radius: 14px;
     overflow: hidden;
-    pointer-events: all;
-    will-change: transform;
-    transform: perspective(800px) rotateX(0deg) rotateY(0deg) scale(1);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
     transition: box-shadow 0.3s ease;
 
-    &:hover {
+    .photo-card-wrap.is-hovered & {
       box-shadow:
-        0 16px 48px rgba(244, 12, 63, 0.2),
+        0 16px 48px rgba(244, 12, 63, 0.18),
         0 8px 24px rgba(0, 0, 0, 0.35);
     }
 
@@ -468,27 +558,67 @@ import rayenSrc from '../assets/rayen.jpg'
   }
 
   .photo-img {
-    display: block;
+    position: absolute;
+    top: 0; left: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
     object-position: center top;
-    border-radius: 14px;
     user-select: none;
     pointer-events: none;
+    display: block;
+
+    &--real { z-index: 1; }
+    &--v2   { z-index: 2; }
   }
+
+  // Dissolve canvas sits above both images
+  .photo-dissolve {
+    position: absolute;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 3;
+    pointer-events: none;
+    border-radius: 14px;
+  }
+
+  .photo-glare {
+    --gx: 50%;
+    --gy: 50%;
+    position: absolute;
+    inset: 0;
+    border-radius: 14px;
+    z-index: 4;
+    opacity: 0;
+    pointer-events: none;
+    background: radial-gradient(
+      circle at var(--gx) var(--gy),
+      rgba(255, 255, 255, 0.28) 0%,
+      rgba(255, 255, 255, 0.05) 40%,
+      transparent 70%
+    );
+    mix-blend-mode: overlay;
+  }
+
+  // ── Animated border ───────────────────────────────────────────
 
   .photo-border {
     position: absolute;
-    inset: -2px;
+    top: 0;
+    left: 0;
+    width: 240px;
+    aspect-ratio: 2336 / 2490;
     border-radius: 16px;
-    z-index: 3;
+    z-index: 5;
     pointer-events: none;
+
+    @include mq(phone) { width: 170px; }
 
     &::before {
       content: '';
       position: absolute;
-      inset: -1px;
+      inset: -2px;
       border-radius: 17px;
       padding: 1.5px;
       background: conic-gradient(
@@ -510,9 +640,9 @@ import rayenSrc from '../assets/rayen.jpg'
     &::after {
       content: '';
       position: absolute;
-      inset: 0;
+      inset: -1px;
       border-radius: 16px;
-      border: 1px solid rgba(244, 12, 63, 0.12);
+      border: 1px solid rgba(244, 12, 63, 0.1);
     }
   }
 
@@ -526,32 +656,150 @@ import rayenSrc from '../assets/rayen.jpg'
     to { --angle: 360deg; }
   }
 
-  .photo-glare {
-    --gx: 50%;
-    --gy: 50%;
+  // ── Terminal — absolute, floats right of card ─────────────────
+
+  .photo-terminal {
     position: absolute;
-    inset: 0;
-    border-radius: 14px;
-    z-index: 2;
+    left: calc(100% + 16px);  // sits right of the card, doesn't shift card
+    top: 50%;
+    transform: translateY(-50%) translateX(12px);
+    width: 210px;
+    background: rgba(6, 0, 0, 0.95);
+    border: 1px solid rgba(244, 12, 63, 0.28);
+    border-radius: 8px;
+    overflow: hidden;
+
     opacity: 0;
     pointer-events: none;
-    background: radial-gradient(
-      circle at var(--gx) var(--gy),
-      rgba(255, 255, 255, 0.3) 0%,
-      rgba(255, 255, 255, 0.06) 40%,
-      transparent 70%
-    );
-    mix-blend-mode: overlay;
+    transition:
+      opacity 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    transition-delay: 0.06s;
+
+    .photo-card-wrap.is-hovered & {
+      opacity: 1;
+      transform: translateY(-50%) translateX(0);
+      pointer-events: all;
+    }
+
+    @include mq(phone) { display: none; }
   }
 
-  .photo-glitch {
+  .terminal__header {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 10px 6px;
+    border-bottom: 1px solid rgba(244, 12, 63, 0.12);
+    background: rgba(244, 12, 63, 0.05);
+  }
+
+  .terminal__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    &--dark { background: rgba(244, 12, 63, 0.18); }
+    &--red  { background: #F40C3F; }
+  }
+
+  .terminal__title {
+    font-family: font-family(mono);
+    font-size: 0.58rem;
+    color: rgba(244, 12, 63, 0.4);
+    letter-spacing: 0.1em;
+    margin-left: 4px;
+  }
+
+  .terminal__body {
+    padding: 11px 12px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .terminal__line {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+    font-family: font-family(mono);
+    font-size: 0.67rem;
+    line-height: 1;
+
+    &--dim { margin-top: 2px; opacity: 0.4; }
+    &--status .terminal__val { animation: status-flicker 4s ease-in-out infinite; }
+  }
+
+  // Readable: dim prompt/key, bright value
+  .terminal__prompt { color: rgba(255, 80, 80, 0.35); flex-shrink: 0; }
+  .terminal__key    { color: rgba(255, 120, 120, 0.7); letter-spacing: 0.04em; flex-shrink: 0; }
+  .terminal__sep    { color: rgba(244, 12, 63, 0.2);  flex-shrink: 0; }
+
+  .terminal__val {
+    color: #ff9090;   // light pink-red — readable on dark bg
+    letter-spacing: 0.03em;
+
+    &--accent {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      color: #ff9090;
+    }
+  }
+
+  .terminal__cursor {
+    color: #F40C3F;
+    animation: cursor-blink 1s step-end infinite;
+    font-size: 0.5rem;
+    line-height: 1;
+  }
+
+  .terminal__comment {
+    color: rgba(255, 80, 80, 0.28);
+    font-style: italic;
+    font-size: 0.6rem;
+  }
+
+  .terminal__blink {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #ff6060;
+    animation: dot-pulse 1.8s ease-in-out infinite;
+    flex-shrink: 0;
+    vertical-align: middle;
+  }
+
+  .terminal__scanlines {
     position: absolute;
     inset: 0;
-    width: 100% !important;
-    height: 100% !important;
-    border-radius: 14px;
-    z-index: 4;
     pointer-events: none;
-    mix-blend-mode: overlay;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px,
+      transparent 3px,
+      rgba(0, 0, 0, 0.12) 3px,
+      rgba(0, 0, 0, 0.12) 4px
+    );
+    z-index: 10;
+  }
+
+  @keyframes cursor-blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0; }
+  }
+
+  @keyframes dot-pulse {
+    0%, 100% { opacity: 1;   transform: scale(1); }
+    50%       { opacity: 0.3; transform: scale(0.6); }
+  }
+
+  @keyframes status-flicker {
+    0%, 94%, 100% { opacity: 1; }
+    95%  { opacity: 0.5; }
+    96%  { opacity: 1; }
+    97%  { opacity: 0.2; }
+    98%  { opacity: 1; }
   }
 </style>
