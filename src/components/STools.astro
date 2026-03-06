@@ -40,6 +40,15 @@
 
   const W = 120, H = 139
 
+  // Registry: each entry holds the element + its current animated lift target
+  type HexEntry = {
+    el: HTMLElement
+    targetLift: number   // desired lift in px (positive = up)
+    currentLift: number  // current smoothed lift
+    isHovered: boolean
+  }
+  const allHexes: HexEntry[] = []
+
   function makeHex(tool: { name: string; svg: string }) {
     const hex = document.createElement('div')
     hex.className = 'st-hex'
@@ -74,23 +83,104 @@
       hex.classList.add('is-flying')
       hex.addEventListener('animationend', () => {
         hex.classList.remove('is-flying')
-        hex.style.opacity = '0.12'
+        hex.style.opacity = ''
       }, { once: true })
     })
 
     return hex
   }
 
+  function shuffle<T>(arr: T[]): T[] {
+    return [...arr].sort(() => Math.random() - 0.5)
+  }
+
+  // ── PROXIMITY + LIFT RAF LOOP ─────────────────────────────────────
+  const GLOW_RADIUS = 300   // opacity glow radius px
+  const LIFT_RADIUS = 180   // neighbor lift radius px
+  const MAX_LIFT    = 18    // max neighbor lift px
+  const HOVER_LIFT  = 28    // hovered hex lift px
+
+  let mouseX = -9999, mouseY = -9999
+  let sectionActive = false
+  let loopRunning   = false
+
+  function lerpLift(h: HexEntry, dt: number) {
+    // Smooth lerp toward target
+    const speed = 12 * dt  // tune: higher = snappier
+    h.currentLift += (h.targetLift - h.currentLift) * Math.min(speed, 1)
+  }
+
+  function proximityLoop() {
+    if (!sectionActive) { loopRunning = false; return }
+    loopRunning = true
+
+    const now = performance.now()
+
+    for (const h of allHexes) {
+      if (h.el.classList.contains('is-flying')) continue
+
+      const rect = h.el.getBoundingClientRect()
+      const cx   = rect.left + rect.width  / 2
+      const cy   = rect.top  + rect.height / 2
+      const dx   = mouseX - cx
+      const dy   = mouseY - cy
+      const dist = Math.sqrt(dx * dx + dy * dy)
+
+      // ─ Opacity glow
+      if (dist < GLOW_RADIUS) {
+        const t  = 1 - dist / GLOW_RADIUS
+        h.el.style.opacity = String(0.12 + t * t * 0.78)
+      } else {
+        h.el.style.opacity = ''
+      }
+
+      // ─ Lift target
+      if (h.isHovered) {
+        h.targetLift = HOVER_LIFT
+      } else if (dist < LIFT_RADIUS) {
+        const t = 1 - dist / LIFT_RADIUS
+        h.targetLift = t * t * MAX_LIFT
+      } else {
+        h.targetLift = 0
+      }
+
+      // ─ Lerp and apply (skip during fly / fall animations)
+      if (!h.el.classList.contains('is-flying') && !h.el.classList.contains('is-falling')) {
+        h.currentLift += (h.targetLift - h.currentLift) * 0.18
+        const lift = Math.round(h.currentLift * 100) / 100
+        h.el.style.transform = lift > 0.1 ? `translateY(-${lift}px)` : ''
+      }
+    }
+
+    requestAnimationFrame(proximityLoop)
+  }
+
+  // ── FALL-IN ENTRANCE ─────────────────────────────────────────────
+  function triggerFallIn() {
+    const hexEls = Array.from(document.querySelectorAll('.st-hex')) as HTMLElement[]
+    const PER_ROW = 24
+    hexEls.forEach((el, i) => {
+      const col   = i % (PER_ROW * 2)  // position within doubled row
+      const row   = Math.floor(i / (PER_ROW * 2))
+      const delay = (col % PER_ROW) * 30 + row * 60
+      el.style.animationDelay = `${delay}ms`
+      el.classList.add('is-falling')
+      el.addEventListener('animationend', () => {
+        el.classList.remove('is-falling')
+        el.style.animationDelay = ''
+      }, { once: true })
+    })
+  }
+
+  // ── INIT ─────────────────────────────────────────────────────────
   function init() {
-    const track = document.querySelector('.js-tools-track') as HTMLElement
-    if (!track) return
+    const track     = document.querySelector('.js-tools-track') as HTMLElement
+    const sectionEl = document.querySelector('.s-tools') as HTMLElement
+    if (!track || !sectionEl) return
 
     const ROWS    = 4
-    const PER_ROW = 24  // enough to fill any screen with no visible end
-    
-    function shuffle(arr) {
-      return [...arr].sort(() => Math.random() - 0.5)
-    }
+    const PER_ROW = 24
+
     for (let r = 0; r < ROWS; r++) {
       const row = document.createElement('div')
       row.className = 'st-hex-row'
@@ -100,12 +190,49 @@
       while (filled.length < PER_ROW) filled.push(...shuffle(tools))
       const slice = filled.slice(0, PER_ROW)
 
-      ;[...slice, ...slice].forEach(t => row.appendChild(makeHex(t)))
+      ;[...slice, ...shuffle(filled.slice(0, PER_ROW))].forEach(t => {
+        const el = makeHex(t)
+        const entry: HexEntry = { el, targetLift: 0, currentLift: 0, isHovered: false }
+
+        el.addEventListener('mouseenter', () => { entry.isHovered = true })
+        el.addEventListener('mouseleave', () => { entry.isHovered = false })
+
+        row.appendChild(el)
+        allHexes.push(entry)
+      })
       track.appendChild(row)
     }
 
+    // Scroll pause
     track.addEventListener('mouseenter', () => track.classList.add('is-paused'))
     track.addEventListener('mouseleave', () => track.classList.remove('is-paused'))
+
+    // Mouse tracking
+    sectionEl.addEventListener('mousemove', (e: MouseEvent) => {
+      mouseX = e.clientX
+      mouseY = e.clientY
+    })
+    sectionEl.addEventListener('mouseleave', () => {
+      mouseX = -9999; mouseY = -9999
+    })
+
+    // Start/stop proximity loop with intersection
+    const proxObserver = new IntersectionObserver((entries) => {
+      sectionActive = entries[0].isIntersecting
+      if (sectionActive && !loopRunning) proximityLoop()
+    }, { threshold: 0 })
+    proxObserver.observe(sectionEl)
+
+    // Fall-in on first enter
+    let hasAnimated = false
+    const fallObserver = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && !hasAnimated) {
+        hasAnimated = true
+        triggerFallIn()
+        fallObserver.disconnect()
+      }
+    }, { threshold: 0.05 })
+    fallObserver.observe(sectionEl)
   }
 
   if (document.readyState === 'loading') {
@@ -118,7 +245,7 @@
 <style lang="scss">
   .s-tools {
     position: relative;
-    z-index: 1;  /* below s-work so work can slide over it */
+    z-index: 1;
     overflow: hidden;
     padding: 8rem 0 10rem;
     background: color(primary);
@@ -158,6 +285,7 @@
     font: 200 clamp(2.5rem, 5vw, 4rem) / 1 font-family(editorial);
     letter-spacing: -0.01em;
     color: color(secondary);
+    
 
     em {
       font-style: italic;
@@ -195,18 +323,25 @@
     margin-bottom: -36px;
   }
 
+  /* ── HEX — NO CSS TRANSFORMS, all handled by JS ── */
   :global(.st-hex) {
     position: relative;
     flex-shrink: 0;
     cursor: pointer;
     opacity: 0.12;
-    transition: opacity 0.35s ease, filter 0.3s ease;
+
+    /* Only transition opacity and filter — transform is driven by JS rAF */
+    transition: opacity 0.4s ease, filter 0.3s ease;
 
     &:hover {
-      opacity: 1;
+      opacity: 1 !important;
       z-index: 100;
-      filter: drop-shadow(0 20px 35px rgba(0,0,0,0.4))
-              drop-shadow(0 4px 10px rgba(22,0,0,0.35));
+      filter: drop-shadow(0 22px 40px rgba(0,0,0,0.5))
+              drop-shadow(0 4px 12px rgba(22,0,0,0.45));
+    }
+
+    &.is-falling {
+      animation: st-fall 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
     }
 
     &.is-flying {
@@ -217,10 +352,17 @@
     }
   }
 
+  @keyframes st-fall {
+    0%   { transform: translateY(-200px); opacity: 0; }
+    65%  { opacity: 1; }
+    85%  { transform: translateY(8px); }
+    100% { transform: translateY(0px); }
+  }
+
   @keyframes st-fly {
-    0%   { transform: translateY(0)     scale(1);    opacity: 1; }
-    60%  { transform: translateY(-90px) scale(1.08); opacity: 1; }
-    100% { transform: translateY(-160px) scale(0.7); opacity: 0; }
+    0%   { transform: translateY(0)      scale(1);    opacity: 1; }
+    60%  { transform: translateY(-90px)  scale(1.08); opacity: 1; }
+    100% { transform: translateY(-160px) scale(0.7);  opacity: 0; }
   }
 
   :global(.hc) {
@@ -270,7 +412,7 @@
   }
   :global(.st-hex__icon svg) { width: 36px; height: 36px; }
 
-  /* hover — ink (#160000) sides, no purple */
+  /* HOVER — top face extrudes (JS handles the hex translateY) */
   :global(.st-hex:hover .st-hex__top)      { transform: translateY(-28px); }
   :global(.st-hex:hover .st-hex__top-fill) {
     background: linear-gradient(145deg, #ffffff 0%, #f5f0f0 40%, #ede6e6 100%);

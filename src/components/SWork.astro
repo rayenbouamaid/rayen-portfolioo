@@ -4,9 +4,6 @@ import dummyVideo from '/src/assets/works/Dummy.mp4'
 
 const videos = await Astro.glob<{ default: any }>('/src/assets/works/*.mp4')
 
-// Yeah, this should probably be in a CMS or content file.
-// But it’s my site, and editing it in code is faster than setting up yet another headless something.
-// Sometimes "quick and dirty" wins. Don’t @ me.
 const info = {
   Dummy1: {
     title: 'Zombie Survival — 3D Roguelite Game',
@@ -45,11 +42,8 @@ const info = {
 let projects = []
 let pens = []
 
-// I removed the video loops to keep the repo lightweight.
-// But this is where I normally fetch and assign the videos for each project in the portfolio.
 videos.forEach((video, index) => {
   const src = video.default
-
   const key = src.split('-')[0].split('/').pop()
   const project = info[key]
   if (!project) return
@@ -57,21 +51,12 @@ videos.forEach((video, index) => {
   const site = project.site
 
   if (key === 'Pen') {
-    pens.push({
-      caption,
-      site,
-      src,
-    })
+    pens.push({ caption, site, src })
   } else {
-    projects.push({
-      caption,
-      site,
-      src,
-    })
+    projects.push({ caption, site, src })
   }
 })
 
-// Create dummy projects with 3 videos each
 for (let i = 1; i <= 14; i++) {
   const key = `Dummy${i}`
   const project = info[key]
@@ -101,7 +86,6 @@ function shuffle(array) {
 
 shuffle(projects)
 
-// Add pens in between projects regularly
 let works = []
 let chunkSize = Math.floor(projects.length / pens.length)
 let i = 0
@@ -202,6 +186,7 @@ while (i < projects.length) {
     points: any[]
 
     tl: gsap.core.Timeline
+    slideUpTl: gsap.core.Timeline
     animationProgress: number
     pointsProgress: number
     last: {
@@ -248,17 +233,12 @@ while (i < projects.length) {
           el: _letter,
           ghosts: [],
         }
-
         this.letters.push(letter)
       })
 
       this.works = []
       this.container.querySelectorAll('.js-work').forEach((_work) => {
-        const work = {
-          el: _work,
-        }
-
-        this.works.push(work)
+        this.works.push({ el: _work })
       })
 
       this.points = []
@@ -292,6 +272,7 @@ while (i < projects.length) {
       this.setLetters()
       this.setWorks()
       this.setTimeline()
+      this.setSlideUp()
 
       this.bindEvents()
     }
@@ -320,6 +301,7 @@ while (i < projects.length) {
         this.setLetters()
         this.setWorks()
         this.setTimeline()
+        this.setSlideUp()
       }
     }
 
@@ -447,24 +429,15 @@ while (i < projects.length) {
 
       for (let i = 1; i < vLines; i++) {
         const x = gapX * i
-
-        mask.lines.push({
-          p1: { x, y: 0 },
-          p2: { x, y: height },
-        })
+        mask.lines.push({ p1: { x, y: 0 }, p2: { x, y: height } })
       }
 
       for (let i = 0; i < hLines; i++) {
         const y = gapY * i
-
-        mask.lines.push({
-          p1: { x: 0, y },
-          p2: { x: width, y },
-        })
+        mask.lines.push({ p1: { x: 0, y }, p2: { x: width, y } })
       }
 
       let dLines = ''
-
       mask.lines.forEach((line) => {
         dLines += `M ${line.p1.x} ${line.p1.y} L ${line.p2.x} ${line.p2.y} `
       })
@@ -485,7 +458,6 @@ while (i < projects.length) {
         })
         letter.ghosts = []
 
-        // Get letter position and size
         const bounding = letter.el.getBoundingClientRect()
 
         letter.width = bounding.width
@@ -497,7 +469,6 @@ while (i < projects.length) {
 
         const multiplier = window.safeWidth > 767 ? 0.75 : 0.5
 
-        // Create ghost letters
         letter.total =
           Math.round((this.bounding.width / letter.width) * multiplier) + 2
 
@@ -526,7 +497,9 @@ while (i < projects.length) {
           el.style.top = ghost.y + 'px'
           el.style.left = ghost.x + 'px'
 
-          el.style.zIndex = String(j !== 1 && j !== 2 && (j + letters.length + i) % 5 === 0 ? 3 : 1)
+          el.style.zIndex = String(
+            j !== 1 && j !== 2 && (j + letters.length + i) % 5 === 0 ? 3 : 1
+          )
 
           el.style.setProperty('--ix', String(ghost.i))
           el.style.setProperty(
@@ -550,13 +523,47 @@ while (i < projects.length) {
 
       works.forEach((work, i) => {
         const el = work.el
-
         el.style.setProperty('--size', String(0.5 + Math.random() * 0.5))
         el.style.setProperty(
           '--y',
           String((0.5 + Math.random() * 0.5) * (i % 2 ? -1 : 1))
         )
       })
+    }
+
+    /**
+     * Set slide-up entrance animation
+     * Uses a separate ScrollTrigger keyed to s-tools ending,
+     * animates clipPath on .s__outer (not the section itself,
+     * which would break the main ScrollTrigger measurements).
+     */
+    setSlideUp() {
+      if (this.slideUpTl) {
+        this.slideUpTl.kill()
+      }
+
+      const toolsEl = document.querySelector('.s-tools') as HTMLElement
+      if (!toolsEl) return
+
+      const outer = this.el.querySelector('.s__outer') as HTMLElement
+
+      this.slideUpTl = gsap.timeline({
+        scrollTrigger: {
+          // Start when bottom of s-tools hits bottom of viewport (tools leaving)
+          // End when top of s-work hits top of viewport (work fully in)
+          trigger: toolsEl,
+          start: 'bottom bottom',
+          end: 'bottom top',
+          scrub: 0.8,
+        },
+      })
+
+      // Reveal the section by clipping from bottom to top
+      this.slideUpTl.fromTo(
+        outer,
+        { clipPath: 'inset(100% 0% 0% 0%)' },
+        { clipPath: 'inset(0% 0% 0% 0%)', ease: 'power3.out' }
+      )
     }
 
     /**
@@ -587,91 +594,49 @@ while (i < projects.length) {
 
       tl.fromTo(
         mask.el,
-        {
-          scale: 1,
-        },
-        {
-          scale: mask.maxScale,
-          duration: 0.75,
-          ease: 'power4.in',
-        },
+        { scale: 1 },
+        { scale: mask.maxScale, duration: 0.75, ease: 'power4.in' },
         0
       )
 
       tl.fromTo(
         scene,
-        {
-          scale: 0.75,
-        },
-        {
-          scale: 1,
-          duration: 0.75,
-          ease: 'power3.in',
-        },
+        { scale: 0.75 },
+        { scale: 1, duration: 0.75, ease: 'power3.in' },
         0
       )
 
       tl.fromTo(
         container,
-        {
-          clipPath: 'inset(0 1rem)',
-        },
-        {
-          clipPath: 'inset(0 0rem)',
-          duration: 0.75,
-          ease: 'power3.in',
-        },
+        { clipPath: 'inset(0 1rem)' },
+        { clipPath: 'inset(0 0rem)', duration: 0.75, ease: 'power3.in' },
         0
       )
 
       tl.fromTo(
         this,
-        {
-          pointsProgress: 0,
-        },
-        {
-          pointsProgress: 1,
-          duration: 1,
-          ease: 'power4.inOut',
-        },
+        { pointsProgress: 0 },
+        { pointsProgress: 1, duration: 1, ease: 'power4.inOut' },
         0
       )
 
       tl.fromTo(
         this,
-        {
-          state: 0,
-        },
-        {
-          state: 1,
-          duration: 0.75,
-          ease: 'power4.in',
-        },
+        { state: 0 },
+        { state: 1, duration: 0.75, ease: 'power4.in' },
         0
       )
 
       tl.fromTo(
         worksEl,
-        {
-          attr: {
-            progress: 1,
-          },
-        },
-        {
-          attr: {
-            progress: -1,
-          },
-          ease: 'slow(0.15, 0.6)',
-          stagger: 0.25,
-        },
+        { attr: { progress: 1 } },
+        { attr: { progress: -1 }, ease: 'slow(0.15, 0.6)', stagger: 0.25 },
         0.75
       )
 
       tl.fromTo(
         this,
-        {
-          animationProgress: 0,
-        },
+        { animationProgress: 0 },
         {
           animationProgress: 10000,
           duration: tl.totalDuration(),
@@ -682,9 +647,7 @@ while (i < projects.length) {
 
       tl.fromTo(
         this,
-        {
-          state: 1,
-        },
+        { state: 1 },
         {
           state: 0,
           duration: 0.75,
@@ -696,9 +659,7 @@ while (i < projects.length) {
 
       tl.fromTo(
         mask.el,
-        {
-          scale: mask.maxScale,
-        },
+        { scale: mask.maxScale },
         {
           scale: 1,
           duration: 0.75,
@@ -710,9 +671,7 @@ while (i < projects.length) {
 
       tl.fromTo(
         scene,
-        {
-          scale: 1,
-        },
+        { scale: 1 },
         {
           scale: 0.75,
           duration: 0.75,
@@ -724,9 +683,7 @@ while (i < projects.length) {
 
       tl.fromTo(
         container,
-        {
-          clipPath: 'inset(0 0rem)',
-        },
+        { clipPath: 'inset(0 0rem)' },
         {
           clipPath: 'inset(0 1rem)',
           duration: 0.75,
@@ -738,16 +695,12 @@ while (i < projects.length) {
 
       tl.fromTo(
         this,
-        {
-          pointsProgress: 1,
-        },
-        {
-          pointsProgress: 0,
-          duration: 1,
-          ease: 'power4.inOut',
-        },
+        { pointsProgress: 1 },
+        { pointsProgress: 0, duration: 1, ease: 'power4.inOut' },
         '-=1'
       )
+
+      this.tl = tl
     }
 
     /**
@@ -814,7 +767,7 @@ while (i < projects.length) {
       this.points = []
 
       const gap = 22
-      const cols = Math.ceil(bounding.width  / gap) + 1
+      const cols = Math.ceil(bounding.width / gap) + 1
       const rows = Math.ceil(bounding.height / gap) + 1
 
       for (let c = 0; c < cols; c++) {
@@ -878,7 +831,6 @@ while (i < projects.length) {
      * Tick
      */
     tick() {
-      // Calculate scroll progress
       this.scrollProgress =
         Math.max(
           Math.min(1, ScrollTrigger.positionInViewport(this.el, 'top')),
@@ -898,11 +850,8 @@ while (i < projects.length) {
         String(this.scrollProgress)
       )
 
-      // Movement
       this.movePoints()
       this.moveLetters()
-
-      // Draw
       this.drawPoints()
     }
   }
@@ -963,8 +912,6 @@ while (i < projects.length) {
         left: 0;
         width: 100%;
         height: 100%;
-
-        // transform: translate3d(0, 0, 0);
       }
 
       &__path-outer {
@@ -1032,7 +979,6 @@ while (i < projects.length) {
       width: var(--width);
       height: 80lvh;
 
-      // background: #0f03;
       pointer-events: none;
 
       @include mq(tablet) {
