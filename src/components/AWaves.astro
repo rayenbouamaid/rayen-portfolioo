@@ -8,20 +8,20 @@ import rayenv2Src from '../assets/rayenv2.png'
   <canvas class="js-canvas"></canvas>
 
   <div class="photo-wrap">
-    <!-- Card is independently centered -->
     <div class="js-photo-card-wrap photo-card-wrap">
 
-      <div class="photo-card">
+      <div class="photo-card js-card">
+        <!-- img1 = real photo (rayen.jpg) — revealed on hover -->
         <img src={rayenSrc.src}   alt="Rayen Bouamaid" class="photo-img photo-img--real" />
-        <img src={rayenv2Src.src} alt=""               class="photo-img photo-img--v2 js-photo-v2" />
-        <!-- Dissolve canvas — pixel noise drawn here -->
+        <!-- img2 = v2 (rayenv2.png) — default, visible at rest -->
+        <img src={rayenv2Src.src} alt=""               class="photo-img photo-img--v2" />
+        <!-- dissolve canvas sits on top of both, draws opaque blocks over img1 to hide it -->
         <canvas class="photo-dissolve js-dissolve"></canvas>
         <div class="photo-glare js-glare"></div>
       </div>
 
       <div class="photo-border"></div>
 
-      <!-- Terminal — absolutely positioned, doesn't affect card centering -->
       <div class="photo-terminal js-terminal">
         <div class="terminal__header">
           <span class="terminal__dot terminal__dot--dark"></span>
@@ -79,7 +79,8 @@ import rayenv2Src from '../assets/rayenv2.png'
     glare: HTMLElement
     dissolveCanvas: HTMLCanvasElement
     dissolveCtx: CanvasRenderingContext2D
-    photoV2: HTMLElement
+    imgReal: HTMLImageElement
+    imgV2: HTMLImageElement
     typeName: HTMLElement
 
     tiltX: number
@@ -89,13 +90,13 @@ import rayenv2Src from '../assets/rayenv2.png'
     isHoveringCard: boolean
     cardRect: DOMRect | null
     typewriterDone: boolean
-    revealProgress: number
 
-    // Pixel dissolve — pre-shuffled pixel order
+    // Dissolve: 0 = v2 fully shown, 1 = real fully shown
+    revealProgress: number
     dissolvePixels: number[]
     dissolveW: number
     dissolveH: number
-    readonly PIXEL_SIZE = 6  // size of each dissolve block
+    readonly PIXEL_SIZE = 8
 
     readonly COUNT = 150
     readonly CONNECT_DIST = 140
@@ -110,11 +111,12 @@ import rayenv2Src from '../assets/rayenv2.png'
       this.canvas        = this.querySelector('.js-canvas')
       this.ctx           = this.canvas.getContext('2d')
       this.wrap          = this.querySelector('.js-photo-card-wrap')
-      this.card          = this.querySelector('.photo-card')
+      this.card          = this.querySelector('.js-card')
       this.glare         = this.querySelector('.js-glare')
       this.dissolveCanvas = this.querySelector('.js-dissolve')
       this.dissolveCtx   = this.dissolveCanvas.getContext('2d')
-      this.photoV2       = this.querySelector('.js-photo-v2')
+      this.imgReal       = this.querySelector('.photo-img--real')
+      this.imgV2         = this.querySelector('.photo-img--v2')
       this.typeName      = this.querySelector('.js-type-name')
 
       this.mouse            = { x: -999, y: -999, active: false }
@@ -133,10 +135,42 @@ import rayenv2Src from '../assets/rayenv2.png'
       this.dissolveW        = 0
       this.dissolveH        = 0
 
+      // At rest: v2 on top, real hidden beneath
+      // dissolveCanvas starts fully opaque over img--real,
+      // so we only see v2. But actually: img--v2 is z:2, img--real z:1.
+      // dissolveCanvas is z:3. At progress=0 it's clear (we see v2 on top).
+      // At progress=1 it draws opaque blocks over v2... wait, we need the opposite.
+      //
+      // Correct stacking:
+      //   z1: img--real  (always there)
+      //   z2: img--v2    (fades out via opacity as progress rises)
+      //   z3: dissolveCanvas (draws the pixel wipe ON TOP of v2 as it fades)
+      //
+      // So: progress 0 = v2 fully opaque (we see v2)
+      //     progress 1 = v2 opacity 0 (we see real)
+      // dissolveCanvas draws the animated mask during transition.
+
+      // Hide immediately so there's no flash before the entry animation
+      this.wrap.style.opacity = '0'
+
       this.setSize()
       this.spawnParticles()
       this.buildDissolveMap()
       this.bindEvents()
+
+      // Entry flip — fires after intro is fully gone
+      // Use a direct style.animation so Astro scoping never interferes
+      document.addEventListener('intro', () => {
+        // 900ms = intro slide-up duration, then we play our animation
+        setTimeout(() => {
+          this.wrap.style.opacity   = '1'
+          this.wrap.style.animation = 'card-entry 1s cubic-bezier(0.22, 1, 0.36, 1) both'
+          this.wrap.addEventListener('animationend', () => {
+            this.wrap.style.animation = ''
+            this.wrap.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg) scale(1)'
+          }, { once: true })
+        }, 1500)
+      }, { once: true })
     }
 
     buildDissolveMap() {
@@ -146,8 +180,8 @@ import rayenv2Src from '../assets/rayenv2.png'
       this.dissolveW = Math.ceil(cw / pw)
       this.dissolveH = Math.ceil(ch / pw)
       const total = this.dissolveW * this.dissolveH
-      // Fisher-Yates shuffle of pixel indices
-      const arr = Array.from({ length: total }, (_, i) => i)
+      const arr   = Array.from({ length: total }, (_, i) => i)
+      // Fisher-Yates shuffle
       for (let i = total - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1))
         ;[arr[i], arr[j]] = [arr[j], arr[i]]
@@ -227,8 +261,6 @@ import rayenv2Src from '../assets/rayenv2.png'
       this.canvas.width  = this.bounding.width
       this.canvas.height = this.bounding.height
       this.cardRect = null
-
-      // Size dissolve canvas to match card exactly
       const cw = this.card?.offsetWidth  || 240
       const ch = this.card?.offsetHeight || 256
       this.dissolveCanvas.width  = cw
@@ -282,7 +314,7 @@ import rayenv2Src from '../assets/rayenv2.png'
       const interval = setInterval(() => {
         this.typeName.textContent += this.FULL_NAME[i++]
         if (i >= this.FULL_NAME.length) clearInterval(interval)
-      }, 55)
+      }, 50)
     }
 
     resetTypewriter() {
@@ -290,49 +322,43 @@ import rayenv2Src from '../assets/rayenv2.png'
       this.typeName.textContent = ''
     }
 
-    // ── Pixel dissolve ────────────────────────────────────────────
-    // progress 0 = v2 fully visible (all pixels filled)
-    // progress 1 = v2 fully dissolved (no pixels, real photo shows)
+    // ── Pixel dissolve ─────────────────────────────────────────
+    // progress 0 → v2 shown (dissolveCanvas is clear, v2 opaque on top)
+    // progress 1 → real shown (v2 opacity 0, dissolveCanvas clear)
+    // mid-transition: v2 fades + dissolveCanvas draws a checkerboard wipe
     drawDissolve(progress: number) {
-      const ctx  = this.dissolveCtx
-      const cw   = this.dissolveCanvas.width
-      const ch   = this.dissolveCanvas.height
-      const pw   = this.PIXEL_SIZE
+      const ctx   = this.dissolveCtx
+      const cw    = this.dissolveCanvas.width
+      const ch    = this.dissolveCanvas.height
+      const pw    = this.PIXEL_SIZE
       const total = this.dissolvePixels.length
 
       ctx.clearRect(0, 0, cw, ch)
+      if (progress <= 0 || progress >= 1) return
 
-      if (progress <= 0) {
-        // Fully covered — fill all blocks with a neutral mask
-        ctx.fillStyle = 'rgba(0,0,0,0)'
-        return
-      }
-      if (progress >= 1) return
+      // How many pixels have been "wiped" so far (revealed)
+      const wiped = Math.floor(progress * total)
 
-      // How many pixels remain opaque (covering v2) — dissolves from full → 0
-      const remaining = Math.floor((1 - progress) * total)
+      // Draw v2-colored blocks for pixels NOT yet wiped
+      // This keeps v2 visible in those regions even as its CSS opacity drops
+      // We sample the v2 image color — but since we can't read pixels easily,
+      // we just draw a semi-transparent overlay that transitions:
+      // unwiped blocks = keep v2 visible by drawing nothing (v2 still opaque underneath)
+      // wiped blocks = draw nothing (real shows through)
+      // Edge = red flash
 
-      // Draw remaining opaque blocks — these mask the real photo underneath
-      // by keeping v2 visible. We achieve this by drawing transparent on cleared canvas
-      // and relying on v2 opacity. Instead: draw black blocks on dissolveCanvas
-      // over the sections that have NOT dissolved yet, using source-over on top of v2.
-      ctx.fillStyle = '#0a0000'
-      for (let i = 0; i < remaining; i++) {
-        const idx = this.dissolvePixels[i]
-        const gx  = (idx % this.dissolveW) * pw
-        const gy  = Math.floor(idx / this.dissolveW) * pw
-        ctx.fillRect(gx, gy, pw, pw)
-      }
+      // Edge band: pixels currently being wiped
+      const edgeSize = Math.floor(total * 0.06)
+      const edgeStart = wiped
+      const edgeEnd   = Math.min(total, wiped + edgeSize)
 
-      // Edge pixels get a red tint for a brief flash as they dissolve
-      const edgeStart = remaining
-      const edgeEnd   = Math.min(total, remaining + Math.floor(total * 0.05))
       ctx.fillStyle = '#F40C3F'
       for (let i = edgeStart; i < edgeEnd; i++) {
         const idx = this.dissolvePixels[i]
         const gx  = (idx % this.dissolveW) * pw
         const gy  = Math.floor(idx / this.dissolveW) * pw
-        ctx.globalAlpha = 0.7
+        const t   = (i - edgeStart) / edgeSize
+        ctx.globalAlpha = 0.9 * (1 - t)
         ctx.fillRect(gx, gy, pw, pw)
       }
       ctx.globalAlpha = 1
@@ -347,17 +373,23 @@ import rayenv2Src from '../assets/rayenv2.png'
       ctx.clearRect(0, 0, width, height)
       const cb = this.getCardBoundsCanvas()
 
-      // Lerp attract + reveal
+      // ── Faster lerp speeds ──
       const target = this.isHoveringCard ? 1 : 0
-      this.attractIntensity += (target - this.attractIntensity) * 0.04
-      this.revealProgress   += (target - this.revealProgress)   * 0.032
+      this.attractIntensity += (target - this.attractIntensity) * 0.05
+      // Speed: 0.08 forward (hover), 0.06 backward (leave) — snappy both ways
+      const revealSpeed = this.isHoveringCard ? 0.08 : 0.06
+      this.revealProgress += (target - this.revealProgress) * revealSpeed
 
-      // Sync v2 — fully opaque until dissolve starts, then JS handles via dissolveCanvas
-      // v2 stays at opacity 1; dissolveCanvas masks it. When fully revealed, hide v2.
-      ;(this.photoV2 as HTMLElement).style.opacity = this.revealProgress >= 0.99 ? '0' : '1'
+      // ── Image visibility ──
+      // v2: fully opaque at rest, fades as reveal progresses
+      // Use a smooth step so it vanishes before the dissolve fully completes
+      const v2Opacity = Math.max(0, 1 - this.revealProgress * 1.6)
+      this.imgV2.style.opacity = String(v2Opacity)
+
+      // Draw pixel dissolve edge
       this.drawDissolve(this.revealProgress)
 
-      // Particles
+      // ── Particles ──
       particles.forEach(p => {
         p.x += p.vx; p.y += p.vy
         if (p.x < 0 || p.x > width)  p.vx *= -1
@@ -390,7 +422,6 @@ import rayenv2Src from '../assets/rayenv2.png'
         }
       })
 
-      // Particle–particle connections
       for (let i = 0; i < particles.length; i++) {
         for (let j = i + 1; j < particles.length; j++) {
           const dx = particles[i].x - particles[j].x
@@ -515,7 +546,6 @@ import rayenv2Src from '../assets/rayenv2.png'
     }
   }
 
-  // Center wrapper — card is the anchor, terminal floats out
   .photo-wrap {
     position: absolute;
     inset: 0;
@@ -526,14 +556,23 @@ import rayenv2Src from '../assets/rayenv2.png'
     z-index: 2;
   }
 
-  // Transform root — position: relative so terminal can absolute off it
+  // Transform root — card is sole layout anchor
   .photo-card-wrap {
     position: relative;
     will-change: transform;
     transform: perspective(900px) rotateX(0deg) rotateY(0deg) scale(1);
     transform-style: preserve-3d;
     pointer-events: all;
+    // opacity controlled entirely via JS inline style after animation
   }
+
+  // :global so JS classList.add works without Astro scope hash
+  :global(.photo-card-wrap.is-entering) {
+    animation: card-entry 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards !important;
+    opacity: 1 !important;
+  }
+
+
 
   // ── Card ──────────────────────────────────────────────────────
 
@@ -545,6 +584,8 @@ import rayenv2Src from '../assets/rayenv2.png'
     overflow: hidden;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
     transition: box-shadow 0.3s ease;
+    // Ensure card is never empty/black — real photo always underneath
+    background: #111;
 
     .photo-card-wrap.is-hovered & {
       box-shadow:
@@ -552,9 +593,7 @@ import rayenv2Src from '../assets/rayenv2.png'
         0 8px 24px rgba(0, 0, 0, 0.35);
     }
 
-    @include mq(phone) {
-      width: 170px;
-    }
+    @include mq(phone) { width: 170px; }
   }
 
   .photo-img {
@@ -568,11 +607,21 @@ import rayenv2Src from '../assets/rayenv2.png'
     pointer-events: none;
     display: block;
 
-    &--real { z-index: 1; }
-    &--v2   { z-index: 2; }
+    // real photo — always at bottom, always visible
+    &--real {
+      z-index: 1;
+      opacity: 1 !important;
+    }
+
+    // v2 — on top by default, fades via JS
+    &--v2 {
+      z-index: 2;
+      opacity: 1;
+      transition: none;
+    }
   }
 
-  // Dissolve canvas sits above both images
+  // Dissolve canvas — above both images, draws red edge during wipe
   .photo-dissolve {
     position: absolute;
     inset: 0;
@@ -594,8 +643,8 @@ import rayenv2Src from '../assets/rayenv2.png'
     pointer-events: none;
     background: radial-gradient(
       circle at var(--gx) var(--gy),
-      rgba(255, 255, 255, 0.28) 0%,
-      rgba(255, 255, 255, 0.05) 40%,
+      rgba(255,255,255,0.28) 0%,
+      rgba(255,255,255,0.05) 40%,
       transparent 70%
     );
     mix-blend-mode: overlay;
@@ -605,8 +654,7 @@ import rayenv2Src from '../assets/rayenv2.png'
 
   .photo-border {
     position: absolute;
-    top: 0;
-    left: 0;
+    top: 0; left: 0;
     width: 240px;
     aspect-ratio: 2336 / 2490;
     border-radius: 16px;
@@ -656,19 +704,18 @@ import rayenv2Src from '../assets/rayenv2.png'
     to { --angle: 360deg; }
   }
 
-  // ── Terminal — absolute, floats right of card ─────────────────
+  // ── Terminal ──────────────────────────────────────────────────
 
   .photo-terminal {
     position: absolute;
-    left: calc(100% + 16px);  // sits right of the card, doesn't shift card
+    left: calc(100% + 16px);
     top: 50%;
-    transform: translateY(-50%) translateX(12px);
+    transform: translateY(-50%) translateX(14px);
     width: 210px;
     background: rgba(6, 0, 0, 0.95);
     border: 1px solid rgba(244, 12, 63, 0.28);
     border-radius: 8px;
     overflow: hidden;
-
     opacity: 0;
     pointer-events: none;
     transition:
@@ -725,20 +772,17 @@ import rayenv2Src from '../assets/rayenv2.png'
     font-family: font-family(mono);
     font-size: 0.67rem;
     line-height: 1;
-
-    &--dim { margin-top: 2px; opacity: 0.4; }
+    &--dim    { margin-top: 2px; opacity: 0.4; }
     &--status .terminal__val { animation: status-flicker 4s ease-in-out infinite; }
   }
 
-  // Readable: dim prompt/key, bright value
-  .terminal__prompt { color: rgba(255, 80, 80, 0.35); flex-shrink: 0; }
-  .terminal__key    { color: rgba(255, 120, 120, 0.7); letter-spacing: 0.04em; flex-shrink: 0; }
-  .terminal__sep    { color: rgba(244, 12, 63, 0.2);  flex-shrink: 0; }
+  .terminal__prompt { color: rgba(255, 80,  80,  0.35); flex-shrink: 0; }
+  .terminal__key    { color: rgba(255, 120, 120, 0.7);  letter-spacing: 0.04em; flex-shrink: 0; }
+  .terminal__sep    { color: rgba(244, 12,  63,  0.2);  flex-shrink: 0; }
 
   .terminal__val {
-    color: #ff9090;   // light pink-red — readable on dark bg
+    color: #ff9090;
     letter-spacing: 0.03em;
-
     &--accent {
       display: flex;
       align-items: center;
@@ -751,7 +795,6 @@ import rayenv2Src from '../assets/rayenv2.png'
     color: #F40C3F;
     animation: cursor-blink 1s step-end infinite;
     font-size: 0.5rem;
-    line-height: 1;
   }
 
   .terminal__comment {
@@ -762,8 +805,7 @@ import rayenv2Src from '../assets/rayenv2.png'
 
   .terminal__blink {
     display: inline-block;
-    width: 6px;
-    height: 6px;
+    width: 6px; height: 6px;
     border-radius: 50%;
     background: #ff6060;
     animation: dot-pulse 1.8s ease-in-out infinite;
@@ -779,8 +821,8 @@ import rayenv2Src from '../assets/rayenv2.png'
       to bottom,
       transparent 0px,
       transparent 3px,
-      rgba(0, 0, 0, 0.12) 3px,
-      rgba(0, 0, 0, 0.12) 4px
+      rgba(0,0,0,0.12) 3px,
+      rgba(0,0,0,0.12) 4px
     );
     z-index: 10;
   }
@@ -797,9 +839,27 @@ import rayenv2Src from '../assets/rayenv2.png'
 
   @keyframes status-flicker {
     0%, 94%, 100% { opacity: 1; }
-    95%  { opacity: 0.5; }
-    96%  { opacity: 1; }
-    97%  { opacity: 0.2; }
-    98%  { opacity: 1; }
+    95% { opacity: 0.5; }
+    96% { opacity: 1; }
+    97% { opacity: 0.2; }
+    98% { opacity: 1; }
+  }
+</style>
+
+<style is:global>
+  @keyframes card-entry {
+    0% {
+      opacity: 0;
+      transform: perspective(900px) rotateY(-70deg) translateX(-40px) scale(0.85);
+      filter: blur(4px);
+    }
+    60% {
+      filter: blur(0px);
+    }
+    100% {
+      opacity: 1;
+      transform: perspective(900px) rotateY(0deg) translateX(0) scale(1);
+      filter: blur(0px);
+    }
   }
 </style>

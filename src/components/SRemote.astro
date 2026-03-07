@@ -3,47 +3,79 @@
 ---
 
 <div class="s-remote">
-  <button class="s-remote__btn js-remote-btn" type="button" aria-label="Scan to control">
-    <svg viewBox="0 0 11 13" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
-      <rect fill="currentColor" x="1" y="1" width="1" height="1"/>
-      <rect fill="currentColor" x="1" y="2" width="1" height="1"/>
-      <rect fill="currentColor" x="1" y="3" width="1" height="1"/>
-      <rect fill="currentColor" x="1" y="4" width="1" height="1"/>
-      <rect fill="currentColor" x="1" y="5" width="1" height="1"/>
-      <rect fill="currentColor" x="1" y="6" width="1" height="1" opacity="0.5"/>
-      <rect fill="currentColor" x="1" y="7" width="1" height="1" opacity="0.5"/>
-      <rect fill="currentColor" x="1" y="8" width="1" height="1" opacity="0.5"/>
-      <rect fill="currentColor" x="1" y="9" width="1" height="1" opacity="0.5"/>
-      <rect fill="currentColor" x="1" y="10" width="1" height="1" opacity="0.5"/>
-      <rect fill="currentColor" x="2" y="1" width="1" height="1"/>
-      <rect fill="currentColor" x="3" y="1" width="1" height="1"/>
-      <rect fill="currentColor" x="4" y="1" width="1" height="1"/>
-      <rect fill="currentColor" x="5" y="1" width="1" height="1"/>
-      <rect fill="currentColor" x="6" y="1" width="1" height="1"/>
-      <rect fill="currentColor" x="7" y="2" width="1" height="1"/>
-      <rect fill="currentColor" x="7" y="3" width="1" height="1"/>
-      <rect fill="currentColor" x="6" y="4" width="1" height="1"/>
-      <rect fill="currentColor" x="5" y="5" width="1" height="1"/>
-      <rect fill="currentColor" x="4" y="5" width="1" height="1"/>
-      <rect fill="currentColor" x="3" y="5" width="1" height="1"/>
-      <rect fill="currentColor" x="2" y="5" width="1" height="1"/>
-      <rect fill="currentColor" x="3" y="6" width="1" height="1"/>
-      <rect fill="currentColor" x="4" y="7" width="1" height="1"/>
-      <rect fill="currentColor" x="5" y="8" width="1" height="1"/>
-      <rect fill="currentColor" x="6" y="9" width="1" height="1"/>
-      <rect fill="currentColor" x="7" y="10" width="1" height="1"/>
+
+  <!-- Hide toggle — small pill to dismiss the whole remote -->
+  <button class="s-remote__hide js-remote-hide" type="button" aria-label="Hide remote">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M18 6L6 18M6 6l12 12"/>
     </svg>
-    <span>Remote</span>
+  </button>
+
+  <button class="s-remote__btn js-remote-btn" type="button" aria-label="Scan to control">
+    <span class="s-remote__btn-icon">
+      <svg viewBox="0 0 11 13" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+        <rect fill="currentColor" x="1" y="1" width="1" height="1"/>
+        <rect fill="currentColor" x="1" y="2" width="1" height="1"/>
+        <rect fill="currentColor" x="1" y="3" width="1" height="1"/>
+        <rect fill="currentColor" x="1" y="4" width="1" height="1"/>
+        <rect fill="currentColor" x="1" y="5" width="1" height="1"/>
+        <rect fill="currentColor" x="1" y="6" width="1" height="1" opacity="0.5"/>
+        <rect fill="currentColor" x="1" y="7" width="1" height="1" opacity="0.5"/>
+        <rect fill="currentColor" x="1" y="8" width="1" height="1" opacity="0.5"/>
+        <rect fill="currentColor" x="1" y="9" width="1" height="1" opacity="0.5"/>
+        <rect fill="currentColor" x="1" y="10" width="1" height="1" opacity="0.5"/>
+        <rect fill="currentColor" x="2" y="1" width="1" height="1"/>
+        <rect fill="currentColor" x="3" y="1" width="1" height="1"/>
+        <rect fill="currentColor" x="4" y="1" width="1" height="1"/>
+        <rect fill="currentColor" x="5" y="1" width="1" height="1"/>
+        <rect fill="currentColor" x="6" y="1" width="1" height="1"/>
+        <rect fill="currentColor" x="7" y="2" width="1" height="1"/>
+        <rect fill="currentColor" x="7" y="3" width="1" height="1"/>
+        <rect fill="currentColor" x="6" y="4" width="1" height="1"/>
+        <rect fill="currentColor" x="5" y="5" width="1" height="1"/>
+        <rect fill="currentColor" x="4" y="5" width="1" height="1"/>
+        <rect fill="currentColor" x="3" y="5" width="1" height="1"/>
+        <rect fill="currentColor" x="2" y="5" width="1" height="1"/>
+        <rect fill="currentColor" x="3" y="6" width="1" height="1"/>
+        <rect fill="currentColor" x="4" y="7" width="1" height="1"/>
+        <rect fill="currentColor" x="5" y="8" width="1" height="1"/>
+        <rect fill="currentColor" x="6" y="9" width="1" height="1"/>
+        <rect fill="currentColor" x="7" y="10" width="1" height="1"/>
+      </svg>
+    </span>
+    <span class="s-remote__btn-label">Remote</span>
+    <span class="s-remote__btn-dot js-remote-dot"></span>
   </button>
 
   <div class="s-remote__popup js-remote-popup">
-    <div class="s-remote__qr" id="remoteQr"></div>
-    <p class="s-remote__hint">Scan to control</p>
-    <div class="s-remote__status">
-      <div class="s-remote__dot js-remote-dot"></div>
-      <span class="js-remote-status">Waiting for phone</span>
+    <!-- Header -->
+    <div class="s-remote__popup-header">
+      <span class="s-remote__popup-tag">// CTRL</span>
+      <span class="s-remote__popup-title">REMOTE ACCESS</span>
     </div>
+
+    <!-- QR -->
+    <div class="s-remote__qr-wrap">
+      <div class="s-remote__qr-corner s-remote__qr-corner--tl"></div>
+      <div class="s-remote__qr-corner s-remote__qr-corner--tr"></div>
+      <div class="s-remote__qr-corner s-remote__qr-corner--bl"></div>
+      <div class="s-remote__qr-corner s-remote__qr-corner--br"></div>
+      <div class="s-remote__qr" id="remoteQr"></div>
+    </div>
+
+    <!-- Hint -->
+    <p class="s-remote__hint">Point your phone camera at the code</p>
+
+    <!-- Status -->
+    <div class="s-remote__status">
+      <div class="s-remote__status-dot js-remote-status-dot"></div>
+      <span class="js-remote-status">Waiting for device</span>
+    </div>
+
+    <!-- Scanlines overlay -->
+    <div class="s-remote__scanlines"></div>
   </div>
+
 </div>
 
 <script>
@@ -51,100 +83,146 @@
 
   const PUSHER_KEY     = '309bead15987315d1c4c'
   const PUSHER_CLUSTER = 'eu'
-  const REMOTE_URL = window.location.href.includes('localhost') 
-  ? 'http://192.168.1.16:4321/remote'
-  : window.location.origin + '/remote'
+  const REMOTE_URL = window.location.href.includes('localhost')
+    ? 'http://192.168.1.16:4321/remote'
+    : window.location.origin + '/remote'
 
-  // ── Generate QR code using free API ──
+  // ── QR code ──
   const qrEl = document.getElementById('remoteQr')
-  const img   = document.createElement('img')
-  img.src     = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(REMOTE_URL)}&bgcolor=160000&color=f0e6e6&format=png`
-  img.width   = 160
-  img.height  = 160
+  const img  = document.createElement('img')
+  img.src    = `https://api.qrserver.com/v1/create-qr-code/?size=148x148&data=${encodeURIComponent(REMOTE_URL)}&bgcolor=160000&color=f0e6e6&format=png`
+  img.width  = 148
+  img.height = 148
   qrEl.appendChild(img)
 
   // ── Toggle popup ──
   const btn   = document.querySelector('.js-remote-btn')
   const popup = document.querySelector('.js-remote-popup')
 
-  btn.addEventListener('click', () => {
-    popup.classList.toggle('is-open')
-  })
+  btn.addEventListener('click', () => popup.classList.toggle('is-open'))
 
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('.s-remote')) {
-      popup.classList.remove('is-open')
-    }
+    if (!e.target.closest('.s-remote')) popup.classList.remove('is-open')
   })
 
-  // ── Pusher listener ──
+  // ── Hide button (desktop ×) ──
+  const remote   = document.querySelector('.s-remote') as HTMLElement
+  const hideBtn  = document.querySelector('.js-remote-hide') as HTMLElement
+
+  hideBtn.addEventListener('click', () => {
+    popup.classList.remove('is-open')
+    remote.classList.toggle('is-hidden')
+  })
+
+  // ── Pusher ──
   const pusher  = new Pusher(PUSHER_KEY, { cluster: PUSHER_CLUSTER, forceTLS: true, enabledTransports: ['ws', 'wss'] })
   const channel = pusher.subscribe('portfolio-remote')
 
   const dot        = document.querySelector('.js-remote-dot')
+  const statusDot  = document.querySelector('.js-remote-status-dot')
   const statusText = document.querySelector('.js-remote-status')
 
   pusher.connection.bind('connected', () => {
     dot.classList.add('is-connected')
+    statusDot.classList.add('is-connected')
     statusText.textContent = 'Ready'
   })
 
   channel.bind('control', (data) => {
     const { action } = data
     dot.classList.add('is-active')
-    setTimeout(() => dot.classList.remove('is-active'), 300)
+    statusDot.classList.add('is-active')
+    setTimeout(() => {
+      dot.classList.remove('is-active')
+      statusDot.classList.remove('is-active')
+    }, 300)
 
-    if (action === 'scroll-up') {
-      window.lenis?.scrollTo(window.scrollY - 300, { duration: 0.6 })
-    } else if (action === 'scroll-down') {
-      window.lenis?.scrollTo(window.scrollY + 300, { duration: 0.6 })
-    } else if (action === 'hold-up') {
-      window.lenis?.scrollTo(window.scrollY - 80, { duration: 0.2 })
-    } else if (action === 'hold-down') {
-      window.lenis?.scrollTo(window.scrollY + 80, { duration: 0.2 })
-    } else if (action === 'nav-about') {
-      window.lenis?.scrollTo('#about', { duration: 1.5 })
-    } else if (action === 'nav-work') {
-      window.lenis?.scrollTo('#work', { duration: 1.5 })
-    } else if (action === 'nav-contact') {
-      window.lenis?.scrollTo('#contact', { duration: 1.5 })
+    if (action === 'scroll-up')        window.lenis?.scrollTo(window.scrollY - 150, { duration: 0.6 })
+    else if (action === 'scroll-down') window.lenis?.scrollTo(window.scrollY + 150, { duration: 0.6 })
+    else if (action === 'hold-up')     window.lenis?.scrollTo(window.scrollY - 80,  { duration: 0.2 })
+    else if (action === 'hold-down')   window.lenis?.scrollTo(window.scrollY + 80,  { duration: 0.2 })
+    else if (action === 'nav-about')   window.lenis?.scrollTo('#about',   { duration: 1.5 })
+    else if (action === 'nav-work')    window.lenis?.scrollTo('#work',    { duration: 1.5 })
+    else if (action === 'nav-contact') window.lenis?.scrollTo('#contact', { duration: 1.5 })
+    else if (action === 'remote-hide') {
+      popup.classList.remove('is-open')
+      remote.classList.toggle('is-hidden')
     }
   })
 </script>
 
 <style lang="scss">
+  // Hide on mobile entirely
+  @include mq(phone) {
+    .s-remote { display: none !important; }
+  }
+
   .s-remote {
     position: fixed;
     bottom: 2rem;
     left: 2rem;
     z-index: 100;
+    display: flex;
+    align-items: flex-end;
+    gap: 0.4rem;
 
-    @include mq(phone) {
-      bottom: 1rem;
-      left: 1rem;
+    // Hidden state
+    &.is-hidden {
+      pointer-events: none;
+
+      .s-remote__btn,
+      .s-remote__hide {
+        opacity: 0;
+        transform: translateY(6px);
+        pointer-events: none;
+      }
     }
 
+    // ── Hide button ──────────────────────────────────────
+    &__hide {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.75rem;
+      height: 1.75rem;
+      background: #160000;
+      border: 1px solid rgba(240, 230, 230, 0.15);
+      cursor: pointer;
+      color: rgba(240, 230, 230, 0.35);
+      transition: color 0.2s, background 0.2s, opacity 0.3s, transform 0.3s;
+      flex-shrink: 0;
+
+      svg {
+        width: 0.65rem;
+        height: 0.65rem;
+      }
+
+      &:hover {
+        background: #F40C3F;
+        color: #f0e6e6;
+        border-color: #F40C3F;
+      }
+    }
+
+    // ── Main button ──────────────────────────────────────
     &__btn {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      padding: 0.75rem 1rem;
-      background: color(secondary);
-      color: color(primary);
-      border: 1px solid color(secondary);
+      padding: 0.6rem 0.875rem 0.6rem 0.7rem;
+      background: #160000;
+      color: #f0e6e6;
+      border: 1px solid rgba(240, 230, 230, 0.15);
       cursor: pointer;
-      font: 700 9px / 1 font-family(fraktion);
-      letter-spacing: 0.2em;
+      font: 700 8px / 1 font-family(fraktion);
+      letter-spacing: 0.22em;
       text-transform: uppercase;
       position: relative;
       overflow: hidden;
-      transition: background 0.3s, color 0.3s;
-
-      svg {
-        width: 1rem;
-        height: 1rem;
-        flex-shrink: 0;
-      }
+      transition: background 0.3s, color 0.3s, opacity 0.3s, transform 0.3s;
+      box-shadow:
+        0 2px 8px rgba(0,0,0,0.2),
+        0 1px 2px rgba(0,0,0,0.15);
 
       &::before {
         content: '';
@@ -156,86 +234,189 @@
         transition: transform 0.4s cubic-bezier(0.76, 0, 0.24, 1);
       }
 
-      &:hover::before { transform: scaleX(1); }
-
-      svg, span {
-        position: relative;
-        z-index: 1;
+      &:hover {
+        color: #f0e6e6;
+        &::before { transform: scaleX(1); }
+        .s-remote__btn-dot { background: #f0e6e6; }
       }
     }
 
+    &__btn-icon {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+
+      svg {
+        width: 0.9rem;
+        height: 0.9rem;
+        flex-shrink: 0;
+      }
+    }
+
+    &__btn-label {
+      position: relative;
+      z-index: 1;
+    }
+
+    &__btn-dot {
+      position: relative;
+      z-index: 1;
+      width: 4px;
+      height: 4px;
+      background: rgba(240, 230, 230, 0.2);
+      border-radius: 50%;
+      flex-shrink: 0;
+      transition: background 0.3s;
+
+      &.is-connected {
+        background: #00cc66 !important;
+        animation: remotePulse 2s ease infinite;
+      }
+
+      &.is-active {
+        background: #F40C3F !important;
+      }
+    }
+
+    // ── Popup ────────────────────────────────────────────
     &__popup {
       position: absolute;
-      bottom: calc(100% + 0.75rem);
+      bottom: calc(100% + 0.6rem);
       left: 0;
-      background: color(secondary);
-      border: 1px solid color(primary);
-      padding: 1.25rem;
+      width: 210px;
+      background: #160000;
+      border: 1px solid rgba(240, 230, 230, 0.12);
+      padding: 1rem;
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 0.75rem;
       opacity: 0;
-      transform: translateY(8px);
+      transform: translateY(10px) scale(0.98);
       pointer-events: none;
-      transition: opacity 0.3s, transform 0.3s;
+      transition:
+        opacity 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+      box-shadow:
+        0 8px 32px rgba(0,0,0,0.3),
+        0 2px 8px rgba(0,0,0,0.2),
+        inset 0 0 0 1px rgba(240,230,230,0.08);
+      overflow: hidden;
 
       &.is-open {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateY(0) scale(1);
         pointer-events: all;
       }
+    }
+
+    &__popup-header {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 0.6rem;
+      border-bottom: 1px solid rgba(240, 230, 230, 0.08);
+    }
+
+    &__popup-tag {
+      font: 700 7px / 1 font-family(fraktion);
+      letter-spacing: 0.2em;
+      color: #F40C3F;
+      text-transform: uppercase;
+    }
+
+    &__popup-title {
+      font: 700 7px / 1 font-family(fraktion);
+      letter-spacing: 0.2em;
+      color: rgba(240, 230, 230, 0.3);
+      text-transform: uppercase;
+    }
+
+    // ── QR wrapper with corner brackets ──────────────────
+    &__qr-wrap {
+      position: relative;
+      padding: 0.5rem;
+    }
+
+    &__qr-corner {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+
+      &--tl { top: 0; left: 0;  border-top: 1.5px solid rgba(240,230,230,0.25); border-left: 1.5px solid rgba(240,230,230,0.25); }
+      &--tr { top: 0; right: 0; border-top: 1.5px solid rgba(240,230,230,0.25); border-right: 1.5px solid rgba(240,230,230,0.25); }
+      &--bl { bottom: 0; left: 0;  border-bottom: 1.5px solid rgba(240,230,230,0.25); border-left: 1.5px solid rgba(240,230,230,0.25); }
+      &--br { bottom: 0; right: 0; border-bottom: 1.5px solid rgba(240,230,230,0.25); border-right: 1.5px solid rgba(240,230,230,0.25); }
     }
 
     &__qr {
       img {
         display: block;
         image-rendering: pixelated;
-        filter: invert(0);
       }
     }
 
+    // ── Hint ─────────────────────────────────────────────
     &__hint {
-      font: 400 9px / 1 font-family(fraktion);
-      letter-spacing: 0.25em;
+      font: 400 7.5px / 1.4 font-family(fraktion);
+      letter-spacing: 0.15em;
       text-transform: uppercase;
-      color: color(primary);
-      opacity: 0.5;
+      color: rgba(240, 230, 230, 0.35);
+      text-align: center;
     }
 
+    // ── Status ───────────────────────────────────────────
     &__status {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      font: 400 8px / 1 font-family(fraktion);
-      letter-spacing: 0.15em;
+      gap: 0.45rem;
+      font: 700 7px / 1 font-family(fraktion);
+      letter-spacing: 0.18em;
       text-transform: uppercase;
-      color: color(primary);
-      opacity: 0.4;
+      color: rgba(240, 230, 230, 0.4);
+      width: 100%;
+      padding-top: 0.5rem;
+      border-top: 1px solid rgba(240, 230, 230, 0.06);
     }
 
-    &__dot {
+    &__status-dot {
       width: 5px;
       height: 5px;
-      background: color(primary);
-      opacity: 0.4;
-      transition: background 0.3s, opacity 0.3s;
+      border-radius: 50%;
+      background: rgba(240, 230, 230, 0.2);
+      flex-shrink: 0;
+      transition: background 0.3s;
 
       &.is-connected {
-        background: #00ff88;
-        opacity: 1;
+        background: #00cc66;
         animation: remotePulse 2s ease infinite;
       }
 
       &.is-active {
         background: #F40C3F;
-        opacity: 1;
       }
     }
 
-    @keyframes remotePulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
+    // ── Scanlines overlay ─────────────────────────────────
+    &__scanlines {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 3px,
+        rgba(240, 230, 230, 0.018) 3px,
+        rgba(240, 230, 230, 0.018) 4px
+      );
+      z-index: 10;
     }
+  }
+
+  @keyframes remotePulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.35; }
   }
 </style>

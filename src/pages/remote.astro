@@ -10,195 +10,36 @@
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
     :root {
-      --primary: #f0e6e6;
-      --secondary: #160000;
+      --bg: #f0e6e6;
+      --ink: #160000;
       --red: #F40C3F;
+      --muted: rgba(22,0,0,0.3);
+      --border: rgba(22,0,0,0.1);
+      --card: #ede3e3;
     }
 
+    html { background: var(--bg); }
+
     body {
-      background: var(--secondary);
-      color: var(--primary);
+      background: var(--bg);
+      color: var(--ink);
       font-family: 'Courier New', monospace;
       min-height: 100dvh;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
+      padding-bottom: 3rem;
     }
 
-    /* ── HEADER ── */
-    .r-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 1.25rem 1.5rem;
-      border-bottom: 1px solid rgba(240,230,230,0.15);
-    }
-
-    .r-logo {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .r-logo svg {
-      width: 1.5rem;
-      height: 1.5rem;
-      color: var(--primary);
-    }
-
-    .r-logo__name {
-      font: 700 11px / 1 'Courier New', monospace;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      opacity: 0.6;
-    }
-
-    .r-status {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font: 400 9px / 1 'Courier New', monospace;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-    }
-
-    .r-status__dot {
-      width: 6px;
-      height: 6px;
-      background: var(--red);
-      animation: pulse 2s ease infinite;
-    }
-
-    .r-status__dot.is-connected {
-      background: #00ff88;
-      animation: pulse-green 2s ease infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
-    }
-
-    @keyframes pulse-green {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.5; transform: scale(0.7); }
-    }
-
-    /* ── LABEL ── */
-    .r-label {
-      padding: 1.25rem 1.5rem 0.5rem;
-      font: 400 8px / 1 'Courier New', monospace;
-      letter-spacing: 0.25em;
-      text-transform: uppercase;
-      opacity: 0.3;
-    }
-
-    /* ── SCROLL CONTROLS ── */
-    .r-scroll {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1px;
-      background: rgba(240,230,230,0.1);
-      margin: 1rem 1.5rem;
-      border: 1px solid rgba(240,230,230,0.1);
-    }
-
-    .r-btn {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      padding: 2rem 1rem;
-      background: var(--secondary);
-      border: none;
-      color: var(--primary);
-      cursor: pointer;
-      font-family: 'Courier New', monospace;
-      position: relative;
-      overflow: hidden;
-      transition: background 0.15s;
-      user-select: none;
-    }
-
-    .r-btn::before {
-      content: '';
-      position: absolute;
+    /* SCANLINES */
+    .r-scanlines {
+      position: fixed;
       inset: 0;
-      background: var(--red);
-      transform: scaleY(0);
-      transform-origin: bottom;
-      transition: transform 0.2s cubic-bezier(0.76, 0, 0.24, 1);
+      pointer-events: none;
+      z-index: 50;
+      background: repeating-linear-gradient(to bottom, transparent 0px, transparent 3px, rgba(22,0,0,0.016) 3px, rgba(22,0,0,0.016) 4px);
     }
 
-    .r-btn:active::before { transform: scaleY(1); }
-
-    .r-btn__icon {
-      position: relative;
-      z-index: 1;
-      font-size: 1.5rem;
-      line-height: 1;
-      transition: transform 0.15s;
-    }
-
-    .r-btn:active .r-btn__icon { transform: scale(0.85); }
-
-    .r-btn__label {
-      position: relative;
-      z-index: 1;
-      font: 700 9px / 1 'Courier New', monospace;
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-      opacity: 0.5;
-    }
-
-    /* ── NAV CONTROLS ── */
-    .r-nav {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 1px;
-      background: rgba(240,230,230,0.1);
-      margin: 0 1.5rem;
-      border: 1px solid rgba(240,230,230,0.1);
-    }
-
-    .r-btn--nav {
-      padding: 1.5rem 0.5rem;
-    }
-
-    .r-btn--nav .r-btn__icon {
-      font-size: 1rem;
-    }
-
-    /* ── HOLD TO SCROLL ── */
-    .r-hold {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1px;
-      background: rgba(240,230,230,0.1);
-      margin: 1rem 1.5rem 0;
-      border: 1px solid rgba(240,230,230,0.1);
-    }
-
-    .r-btn--hold {
-      padding: 1.25rem 1rem;
-    }
-
-    .r-btn--hold.is-holding::before { transform: scaleY(1); }
-
-    /* ── FOOTER ── */
-    .r-footer {
-      margin-top: auto;
-      padding: 1rem 1.5rem;
-      font: 400 8px / 1 'Courier New', monospace;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      opacity: 0.2;
-      text-align: center;
-      border-top: 1px solid rgba(240,230,230,0.08);
-    }
-
-    /* ── FEEDBACK FLASH ── */
+    /* FLASH */
     .r-flash {
       position: fixed;
       inset: 0;
@@ -206,19 +47,281 @@
       opacity: 0;
       pointer-events: none;
       z-index: 99;
-      transition: opacity 0.1s;
+      transition: opacity 0.08s;
+    }
+    .r-flash.is-visible { opacity: 0.07; }
+
+    /* HEADER */
+    .r-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.25rem;
     }
 
-    .r-flash.is-visible { opacity: 0.08; }
+    .r-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .r-logo-svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    .r-logo__name {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .r-status {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .r-status__dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--red);
+      flex-shrink: 0;
+      animation: pulse 2s ease infinite;
+    }
+
+    .r-status__dot.is-connected {
+      background: #00bb66;
+      animation: pulse-green 2s ease infinite;
+    }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.2} }
+    @keyframes pulse-green { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.6)} }
+
+    /* SECTION LABEL */
+    .r-section {
+      padding: 1.5rem 1.25rem 0.6rem;
+      font-size: 7px;
+      font-weight: 700;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .r-section-line {
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* CARD GRIDS */
+    .r-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.55rem;
+      padding: 0 1.25rem;
+    }
+
+    .r-cards-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0.55rem;
+      padding: 0 1.25rem;
+    }
+
+    /* CARD */
+    .r-card {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: space-between;
+      padding: 1rem 1rem 0.85rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 2px;
+      cursor: pointer;
+      overflow: hidden;
+      min-height: 96px;
+      box-shadow: 0 2px 6px rgba(22,0,0,0.06);
+      transition: transform 0.12s, box-shadow 0.12s;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .r-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--red);
+      transform: scaleY(0);
+      transform-origin: bottom;
+      transition: transform 0.2s cubic-bezier(0.76,0,0.24,1);
+      z-index: 0;
+    }
+
+    .r-card:active { transform: scale(0.95); box-shadow: 0 1px 3px rgba(22,0,0,0.06); }
+    .r-card:active::before { transform: scaleY(1); }
+    .r-card:active .r-card__label { color: rgba(240,230,230,0.45); }
+    .r-card:active .r-card__icon  { color: rgba(240,230,230,0.25); }
+    .r-card:active .r-card__name  { color: #f0e6e6; }
+
+    .r-card.is-holding { transform: scale(0.95); box-shadow: 0 1px 3px rgba(22,0,0,0.06); }
+    .r-card.is-holding::before { transform: scaleY(1); }
+    .r-card.is-holding .r-card__label { color: rgba(240,230,230,0.45); }
+    .r-card.is-holding .r-card__icon  { color: rgba(240,230,230,0.25); }
+    .r-card.is-holding .r-card__name  { color: #f0e6e6; }
+
+    .r-card__dot {
+      position: absolute;
+      top: 0.65rem;
+      right: 0.65rem;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--red);
+      opacity: 0.35;
+      z-index: 1;
+    }
+
+    .r-card__label {
+      position: relative;
+      z-index: 1;
+      font-size: 6px;
+      font-weight: 700;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--muted);
+      transition: color 0.15s;
+    }
+
+    .r-card__icon {
+      position: relative;
+      z-index: 1;
+      font-size: 1.5rem;
+      line-height: 1;
+      color: rgba(22,0,0,0.18);
+      align-self: flex-end;
+      transition: color 0.15s;
+    }
+
+    .r-card__name {
+      position: relative;
+      z-index: 1;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--ink);
+      transition: color 0.15s;
+    }
+
+    /* HIDE BUTTON */
+    .r-hide-wrap {
+      padding: 1.75rem 1.25rem 0;
+    }
+
+    .r-hide-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.85rem 1.25rem;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 8px;
+      font-weight: 700;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+
+    .r-hide-btn-icon {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+
+    .r-hide-btn:active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+    /* CONTROLLER VISIBILITY */
+    .r-controller {
+      transition: opacity 0.35s, transform 0.35s;
+    }
+    .r-controller.is-hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(10px);
+    }
+
+    /* SHOW BUTTON */
+    .r-show-btn {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.85rem 1.75rem;
+      background: var(--ink);
+      color: var(--bg);
+      border: none;
+      font-size: 8px;
+      font-weight: 700;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      cursor: pointer;
+      z-index: 20;
+      opacity: 0;
+      white-space: nowrap;
+      box-shadow: 0 4px 20px rgba(22,0,0,0.18);
+      transition: transform 0.4s cubic-bezier(0.22,1,0.36,1), opacity 0.35s;
+    }
+
+    .r-show-btn-icon {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+
+    .r-show-btn.is-visible {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
   </style>
 </head>
 <body>
 
 <div class="r-flash" id="flash"></div>
+<div class="r-scanlines"></div>
 
+<!-- Header -->
 <div class="r-header">
   <div class="r-logo">
-    <svg viewBox="0 0 11 13" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+    <svg class="r-logo-svg" viewBox="0 0 11 13" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
       <rect fill="currentColor" x="1" y="1" width="1" height="1"/>
       <rect fill="currentColor" x="1" y="2" width="1" height="1"/>
       <rect fill="currentColor" x="1" y="3" width="1" height="1"/>
@@ -255,73 +358,77 @@
   </div>
 </div>
 
-<div class="r-label">Scroll</div>
-<div class="r-scroll">
-  <button class="r-btn" id="btnUp" data-action="scroll-up">
-    <span class="r-btn__icon">↑</span>
-    <span class="r-btn__label">Up</span>
-  </button>
-  <button class="r-btn" id="btnDown" data-action="scroll-down">
-    <span class="r-btn__icon">↓</span>
-    <span class="r-btn__label">Down</span>
-  </button>
+<!-- Controller -->
+<div class="r-controller" id="controller">
+
+  <div class="r-section">Scroll<span class="r-section-line"></span></div>
+  <div class="r-cards">
+    <div class="r-card r-card--hold" data-action="scroll-up">
+      <div class="r-card__dot"></div>
+      <span class="r-card__label">Hold</span>
+      <span class="r-card__icon">↑</span>
+      <span class="r-card__name">Scroll Up</span>
+    </div>
+    <div class="r-card r-card--hold" data-action="scroll-down">
+      <div class="r-card__dot"></div>
+      <span class="r-card__label">Hold</span>
+      <span class="r-card__icon">↓</span>
+      <span class="r-card__name">Scroll Down</span>
+    </div>
+  </div>
+
+  <div class="r-section">Navigate<span class="r-section-line"></span></div>
+  <div class="r-cards-3">
+    <div class="r-card" data-action="nav-about">
+      <div class="r-card__dot"></div>
+      <span class="r-card__label">Go to</span>
+      <span class="r-card__icon">◈</span>
+      <span class="r-card__name">About</span>
+    </div>
+    <div class="r-card" data-action="nav-work">
+      <div class="r-card__dot"></div>
+      <span class="r-card__label">Go to</span>
+      <span class="r-card__icon">◉</span>
+      <span class="r-card__name">Work</span>
+    </div>
+    <div class="r-card" data-action="nav-contact">
+      <div class="r-card__dot"></div>
+      <span class="r-card__label">Go to</span>
+      <span class="r-card__icon">✦</span>
+      <span class="r-card__name">Contact</span>
+    </div>
+  </div>
+
+  <div class="r-hide-wrap">
+    <button class="r-hide-btn" id="hideBtn">
+      <svg class="r-hide-btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22"/>
+      </svg>
+      <span>Hide Controller</span>
+    </button>
+  </div>
+
 </div>
 
-<div class="r-label">Hold to scroll</div>
-<div class="r-hold">
-  <button class="r-btn r-btn--hold" id="holdUp" data-action="hold-up">
-    <span class="r-btn__icon">⇈</span>
-    <span class="r-btn__label">Hold Up</span>
-  </button>
-  <button class="r-btn r-btn--hold" id="holdDown" data-action="hold-down">
-    <span class="r-btn__icon">⇊</span>
-    <span class="r-btn__label">Hold Down</span>
-  </button>
-</div>
 
-<div class="r-label">Navigate</div>
-<div class="r-nav">
-  <button class="r-btn r-btn--nav" data-action="nav-about">
-    <span class="r-btn__icon">◈</span>
-    <span class="r-btn__label">About</span>
-  </button>
-  <button class="r-btn r-btn--nav" data-action="nav-work">
-    <span class="r-btn__icon">◉</span>
-    <span class="r-btn__label">Work</span>
-  </button>
-  <button class="r-btn r-btn--nav" data-action="nav-contact">
-    <span class="r-btn__icon">✦</span>
-    <span class="r-btn__label">Contact</span>
-  </button>
-</div>
-
-<div class="r-footer">Rayen Bouamaid Portfolio — Remote Control</div>
 
 <script is:inline>
   window.addEventListener('load', () => {
     const script = document.createElement('script')
     script.src = 'https://js.pusher.com/8.2.0/pusher.min.js'
     script.onload = () => {
-      const PUSHER_KEY     = '309bead15987315d1c4c'
-      const PUSHER_CLUSTER = 'eu'
-      const CHANNEL_NAME   = 'portfolio-remote'
-
-      const pusher  = new Pusher(PUSHER_KEY, { cluster: PUSHER_CLUSTER })
-      const channel = pusher.subscribe(CHANNEL_NAME)
+      const pusher = new Pusher('309bead15987315d1c4c', { cluster: 'eu' })
+      pusher.subscribe('portfolio-remote')
 
       const statusDot  = document.getElementById('statusDot')
       const statusText = document.getElementById('statusText')
       const flash      = document.getElementById('flash')
+      const controller = document.getElementById('controller')
+      const hideBtn    = document.getElementById('hideBtn')
+      const showBtn    = document.getElementById('showBtn')
 
-      pusher.connection.bind('connected', () => {
-        statusDot.classList.add('is-connected')
-        statusText.textContent = 'Connected'
-      })
-
-      pusher.connection.bind('disconnected', () => {
-        statusDot.classList.remove('is-connected')
-        statusText.textContent = 'Disconnected'
-      })
+      pusher.connection.bind('connected',    () => { statusDot.classList.add('is-connected');    statusText.textContent = 'Connected' })
+      pusher.connection.bind('disconnected', () => { statusDot.classList.remove('is-connected'); statusText.textContent = 'Disconnected' })
 
       function flashScreen() {
         flash.classList.add('is-visible')
@@ -331,27 +438,31 @@
       async function sendAction(action) {
         flashScreen()
         try {
-          const res = await fetch(window.location.origin + '/api/remote', {
+          await fetch(window.location.origin + '/api/remote', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action }),
           })
-          const data = await res.json()
-          // ok
-        } catch(err) {
-          console.error(err)
-        }
+        } catch(e) { console.error(e) }
       }
 
-      document.querySelectorAll('.r-btn:not(.r-btn--hold)').forEach(btn => {
-        btn.addEventListener('click', () => sendAction(btn.dataset.action))
+      let remoteHidden = false
+
+      hideBtn.addEventListener('click', () => {
+        remoteHidden = !remoteHidden
+        sendAction('remote-hide')
+        hideBtn.querySelector('span').textContent = remoteHidden ? 'Show Controller' : 'Hide Controller'
+      })
+
+      document.querySelectorAll('.r-card:not(.r-card--hold)').forEach(card => {
+        card.addEventListener('click', () => sendAction(card.dataset.action))
       })
 
       let holdInterval = null
 
       function startHold(action) {
         sendAction(action)
-        holdInterval = setInterval(() => sendAction(action), 120)
+        holdInterval = setInterval(() => sendAction(action), 100)
       }
 
       function stopHold() {
@@ -359,10 +470,11 @@
         holdInterval = null
       }
 
-      document.querySelectorAll('.r-btn--hold').forEach(btn => {
-        btn.addEventListener('pointerdown', () => { btn.classList.add('is-holding'); startHold(btn.dataset.action) })
-        btn.addEventListener('pointerup',   () => { btn.classList.remove('is-holding'); stopHold() })
-        btn.addEventListener('pointerleave',() => { btn.classList.remove('is-holding'); stopHold() })
+      document.querySelectorAll('.r-card--hold').forEach(card => {
+        card.addEventListener('pointerdown',   (e) => { e.preventDefault(); card.classList.add('is-holding');    startHold(card.dataset.action) })
+        card.addEventListener('pointerup',     ()  => { card.classList.remove('is-holding'); stopHold() })
+        card.addEventListener('pointerleave',  ()  => { card.classList.remove('is-holding'); stopHold() })
+        card.addEventListener('pointercancel', ()  => { card.classList.remove('is-holding'); stopHold() })
       })
     }
     document.head.appendChild(script)
